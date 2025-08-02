@@ -1,4 +1,4 @@
-package com.credair.flight.search.config
+package com.credair.flight.search
 
 import com.credair.core.config.CredAirCoreModule
 import com.google.inject.AbstractModule

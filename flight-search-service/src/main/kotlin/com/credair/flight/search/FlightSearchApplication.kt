@@ -1,6 +1,5 @@
 package com.credair.flight.search
 
-import com.credair.flight.search.config.FlightSearchModule
 import com.credair.flight.search.resource.FlightSearchResource
 import com.google.inject.Guice
 import io.dropwizard.Configuration
