@@ -7,7 +7,7 @@ import java.time.LocalDateTime
 
 data class Flight(
     @JsonProperty("id")
-    override val id: Long? = null,
+    val id: Long? = null,
     
     @JsonProperty("airline_id")
     val airlineId: Long,
@@ -46,11 +46,11 @@ data class Flight(
     val active: Boolean = true,
     
     @JsonProperty("created_at")
-    override val createdAt: LocalDateTime? = null,
+    val createdAt: LocalDateTime? = null,
     
     @JsonProperty("updated_at")
-    override val updatedAt: LocalDateTime? = null
-) : BaseEntity() {
+    val updatedAt: LocalDateTime? = null
+) {
     
     val duration: Long
         get() = java.time.Duration.between(departureTime, arrivalTime).toMinutes()

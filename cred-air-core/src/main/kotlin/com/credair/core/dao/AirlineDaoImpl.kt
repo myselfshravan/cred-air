@@ -2,13 +2,14 @@ package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.AirlineDao
 import com.credair.core.model.Airline
+import com.google.inject.Inject
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.mapper.RowMapper
 import org.jdbi.v3.core.statement.StatementContext
 import java.sql.ResultSet
 import java.time.LocalDateTime
 
-class AirlineDaoImpl(private val jdbi: Jdbi) : AirlineDao {
+class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
 
     private val airlineMapper = RowMapper<Airline> { rs: ResultSet, _: StatementContext ->
         Airline(
@@ -86,7 +87,7 @@ class AirlineDaoImpl(private val jdbi: Jdbi) : AirlineDao {
         return entity.copy(updatedAt = now)
     }
 
-    override fun deleteById(id: Long): Boolean {
+    override fun delete(id: Long): Boolean {
         return jdbi.withHandle<Int, Exception> { handle ->
             handle.createUpdate("DELETE FROM airlines WHERE id = :id")
                 .bind("id", id)
@@ -94,14 +95,6 @@ class AirlineDaoImpl(private val jdbi: Jdbi) : AirlineDao {
         } > 0
     }
 
-    override fun exists(id: Long): Boolean {
-        return jdbi.withHandle<Boolean, Exception> { handle ->
-            handle.createQuery("SELECT COUNT(*) FROM airlines WHERE id = :id")
-                .bind("id", id)
-                .mapTo(Int::class.java)
-                .one() > 0
-        }
-    }
 
     override fun findByCode(code: String): Airline? {
         return jdbi.withHandle<Airline?, Exception> { handle ->
