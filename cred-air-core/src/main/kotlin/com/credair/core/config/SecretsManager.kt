@@ -12,10 +12,10 @@ class DummySecretsManager : SecretsManager {
     
     private val secrets = mapOf(
         "credair-db" to DatabaseConfigImpl(
-            url = "jdbc:h2:mem:credair_db",
-            driver = "org.h2.Driver",
-            username = "sa",
-            password = ""
+            url = "jdbc:postgresql://localhost:5432/credair_db",
+            driver = "org.postgresql.Driver",
+            username = "credair_user",
+            password = "credair_password"
         )
     )
     
