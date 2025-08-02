@@ -30,6 +30,10 @@ data class FlightReactivatedEvent(
     override val flightId: Long
 ) : FlightChangeEvent(flightId)
 
+data class FlightCreatedEvent(
+    override val flightId: Long
+) : FlightChangeEvent(flightId)
+
 data class FlightChangeAnalysis(
     val changeType: FlightChangeType,
     val scheduleChanged: Boolean,
@@ -44,5 +48,6 @@ enum class FlightChangeType {
     SEATS_UPDATE,       // only available_seats changed  
     FLIGHT_CANCELLED,   // active: true → false
     FLIGHT_REACTIVATED, // active: false → true
+    FLIGHT_CREATED,     // new flight creation
     NO_MATERIAL_CHANGE  // only metadata changed (airline_id, aircraft_type, etc.)
 }
