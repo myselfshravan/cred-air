@@ -2,6 +2,7 @@ package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.FlightDao
 import com.credair.core.model.Flight
+import com.credair.core.model.SearchResult
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
@@ -15,27 +16,35 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
 
     private val flightMapper = RowMapper { rs: ResultSet, _: StatementContext ->
         Flight(
-            id = rs.getLong("id"),
-            airlineId = rs.getLong("airline_id"),
+            flightId = rs.getLong("flight_id"),
             flightNumber = rs.getString("flight_number"),
-            sourceAirport = rs.getString("source_airport"),
-            destinationAirport = rs.getString("destination_airport"),
+            srcAirportCode = rs.getString("src_airport_code"),
+            destAirportCode = rs.getString("dest_airport_code"),
             departureTime = rs.getTimestamp("departure_time").toLocalDateTime(),
             arrivalTime = rs.getTimestamp("arrival_time").toLocalDateTime(),
-            price = rs.getBigDecimal("price"),
-            currency = rs.getString("currency"),
-            totalSeats = rs.getInt("total_seats"),
-            availableSeats = rs.getInt("available_seats"),
-            aircraftType = rs.getString("aircraft_type"),
-            active = rs.getBoolean("active"),
-            createdAt = rs.getTimestamp("created_at")?.toLocalDateTime(),
-            updatedAt = rs.getTimestamp("updated_at")?.toLocalDateTime()
+            airline = rs.getString("airline"),
+            cost = rs.getBigDecimal("cost")
+        )
+    }
+
+    private val searchResultMapper = RowMapper { rs: ResultSet, _: StatementContext ->
+        val pathArray = rs.getArray("path")
+        val path = (pathArray.array as Array<*>).map { it as Long }.toLongArray()
+        
+        SearchResult(
+            srcAirportCode = rs.getString("src_airport_code"),
+            destAirportCode = rs.getString("dest_airport_code"),
+            path = path.toTypedArray(),
+            departureTime = rs.getTimestamp("departure_time").toLocalDateTime(),
+            arrivalTime = rs.getTimestamp("arrival_time").toLocalDateTime(),
+            stops = rs.getInt("stops"),
+            totalCost = rs.getBigDecimal("total_cost")
         )
     }
 
     override fun findById(id: Long): Flight? {
         return jdbi.withHandle<Flight?, Exception> { handle ->
-            handle.createQuery("SELECT * FROM flights WHERE id = :id")
+            handle.createQuery("SELECT * FROM flights WHERE flight_id = :id")
                 .bind("id", id)
                 .map(flightMapper)
                 .findFirst()
@@ -146,7 +155,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         return jdbi.withHandle<List<Flight>, Exception> { handle ->
             handle.createQuery("""
                 SELECT * FROM flights 
-                WHERE source_airport = :sourceAirport AND destination_airport = :destinationAirport 
+                WHERE src_airport_code = :sourceAirport AND dest_airport_code = :destinationAirport 
                 ORDER BY departure_time
             """)
                 .bind("sourceAirport", sourceAirport)
@@ -164,7 +173,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         return jdbi.withHandle<List<Flight>, Exception> { handle ->
             handle.createQuery("""
                 SELECT * FROM flights 
-                WHERE source_airport = :sourceAirport AND destination_airport = :destinationAirport 
+                WHERE src_airport_code = :sourceAirport AND dest_airport_code = :destinationAirport 
                 AND DATE(departure_time) = DATE(:departureDate)
                 ORDER BY departure_time
             """)
@@ -202,17 +211,67 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         }
     }
 
+    override fun findBySourceAirport(sourceAirport: String): List<Flight> {
+        return jdbi.withHandle<List<Flight>, Exception> { handle ->
+            handle.createQuery("""
+                SELECT * FROM flights 
+                WHERE src_airport_code = :sourceAirport
+                ORDER BY departure_time
+            """)
+                .bind("sourceAirport", sourceAirport)
+                .map(flightMapper)
+                .list()
+        }
+    }
+
     override fun updateAvailableSeats(flightId: Long, availableSeats: Int): Boolean {
         return jdbi.withHandle<Int, Exception> { handle ->
             handle.createUpdate("""
                 UPDATE flights 
                 SET available_seats = :availableSeats, updated_at = :updatedAt 
-                WHERE id = :id
+                WHERE flight_id = :id
             """)
                 .bind("id", flightId)
                 .bind("availableSeats", availableSeats)
                 .bind("updatedAt", LocalDateTime.now())
                 .execute()
         } > 0
+    }
+
+    override fun searchFlightsOptimized(
+        srcAirportCode: String,
+        destAirportCode: String,
+        limit: Int
+    ): List<SearchResult> {
+        return jdbi.withHandle<List<SearchResult>, Exception> { handle ->
+            handle.createQuery("""
+                SELECT *
+                FROM mv_flights_0_stop
+                WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
+                AND departure_time > NOW()
+                
+                UNION ALL
+                
+                SELECT *
+                FROM mv_flights_1_stop
+                WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
+                AND departure_time > NOW()
+                
+                UNION ALL
+                
+                SELECT *
+                FROM mv_flights_2_stop
+                WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
+                AND departure_time > NOW()
+                
+                ORDER BY stops ASC, total_cost ASC, arrival_time ASC
+                LIMIT :limit
+            """)
+                .bind("srcAirportCode", srcAirportCode)
+                .bind("destAirportCode", destAirportCode)
+                .bind("limit", limit)
+                .map(searchResultMapper)
+                .list()
+        }
     }
 }

@@ -16,8 +16,13 @@ class FlightSearchManager @Inject constructor(private val flightDao: FlightDao) 
         val departureDate: LocalDateTime? = null,
         val maxPrice: BigDecimal? = null,
         val minPrice: BigDecimal? = null,
-        val airlineId: Long? = null,
-        val minSeats: Int = 1
+        val airlineId: String? = null,
+        val minSeats: Int = 1,
+        val directOnly: Boolean = false,
+        val maxStops: Int = 2,
+        val minLayoverMinutes: Long = 60,
+        val maxLayoverMinutes: Long = 720,
+        val maxTotalDurationHours: Long = 24
     )
 
     data class SortCriteria(
@@ -39,79 +44,18 @@ class FlightSearchManager @Inject constructor(private val flightDao: FlightDao) 
     ): List<Flight> {
         validateSearchCriteria(criteria)
         
-        val flights = when {
-            criteria.departureDate != null -> {
-                flightDao.findByRouteAndDate(
-                    criteria.sourceAirport,
-                    criteria.destinationAirport,
-                    criteria.departureDate
-                )
-            }
-            else -> {
-                flightDao.findByRoute(
-                    criteria.sourceAirport,
-                    criteria.destinationAirport
-                )
-            }
-        }
-        
-        return flights
-            .filter { flight -> applyFilters(flight, criteria) }
-            .sortedWith(getSortComparator(sortCriteria))
-    }
-
-    fun getAvailableFlights(): List<Flight> {
-        return flightDao.findAvailableFlights()
-            .filter { it.isAvailable }
-            .sortedBy { it.departureTime }
-    }
-
-    fun getFlightsByAirline(airlineId: Long): List<Flight> {
-        return flightDao.findByAirlineId(airlineId)
-            .filter { it.active }
-            .sortedBy { it.departureTime }
-    }
-
-    fun getFlightByNumber(flightNumber: String): List<Flight> {
-        return flightDao.findByFlightNumber(flightNumber)
-            .filter { it.active }
-            .sortedBy { it.departureTime }
-    }
-
-    fun findCheapestFlights(
-        sourceAirport: String,
-        destinationAirport: String,
-        limit: Int = 5
-    ): List<Flight> {
-        return flightDao.findByRoute(sourceAirport, destinationAirport)
-            .filter { it.isAvailable }
-            .sortedBy { it.price }
-            .take(limit)
-    }
-
-    fun findFastestFlights(
-        sourceAirport: String,
-        destinationAirport: String,
-        limit: Int = 5
-    ): List<Flight> {
-        return flightDao.findByRoute(sourceAirport, destinationAirport)
-            .filter { it.isAvailable }
-            .sortedBy { it.duration }
-            .take(limit)
-    }
-
-    fun getFlightRecommendations(
-        sourceAirport: String,
-        destinationAirport: String
-    ): Map<String, List<Flight>> {
-        val allFlights = flightDao.findByRoute(sourceAirport, destinationAirport)
-            .filter { it.isAvailable }
-
-        return mapOf(
-            "cheapest" to allFlights.sortedBy { it.price }.take(3),
-            "fastest" to allFlights.sortedBy { it.duration }.take(3),
-            "best_value" to allFlights.sortedBy { calculateValueScore(it) }.take(3)
+        // Use optimized materialized view search for better performance
+        val searchResults = flightDao.searchFlightsOptimized(
+            criteria.sourceAirport,
+            criteria.destinationAirport,
+            100
         )
+        
+        // Convert SearchResult to Flight for backward compatibility
+        return searchResults
+            .filter { result -> applySearchResultFilters(result, criteria) }
+            .map { result -> convertSearchResultToFlight(result) }
+            .sortedWith(getSortComparator(sortCriteria))
     }
 
     private fun validateSearchCriteria(criteria: SearchCriteria) {
@@ -129,25 +73,6 @@ class FlightSearchManager @Inject constructor(private val flightDao: FlightDao) 
         }
     }
 
-    private fun applyFilters(flight: Flight, criteria: SearchCriteria): Boolean {
-        if (!flight.isAvailable) return false
-        if (flight.availableSeats < criteria.minSeats) return false
-        
-        criteria.minPrice?.let { minPrice ->
-            if (flight.price < minPrice) return false
-        }
-        
-        criteria.maxPrice?.let { maxPrice ->
-            if (flight.price > maxPrice) return false
-        }
-        
-        criteria.airlineId?.let { airlineId ->
-            if (flight.airlineId != airlineId) return false
-        }
-        
-        return true
-    }
-
     private fun getSortComparator(sortCriteria: SortCriteria): Comparator<Flight> {
         val comparator = when (sortCriteria.sortBy) {
             SortBy.DEPARTURE_TIME -> compareBy<Flight> { it.departureTime }
@@ -163,13 +88,32 @@ class FlightSearchManager @Inject constructor(private val flightDao: FlightDao) 
         }
     }
 
-    private fun calculateValueScore(flight: Flight): Double {
-        val priceWeight = 0.6
-        val durationWeight = 0.4
+    private fun applySearchResultFilters(result: com.credair.core.model.SearchResult, criteria: SearchCriteria): Boolean {
+        criteria.minPrice?.let { minPrice ->
+            if (result.totalCost < minPrice) return false
+        }
         
-        val normalizedPrice = flight.price.toDouble()
-        val normalizedDuration = flight.duration.toDouble()
+        criteria.maxPrice?.let { maxPrice ->
+            if (result.totalCost > maxPrice) return false
+        }
         
-        return (normalizedPrice * priceWeight) + (normalizedDuration * durationWeight)
+        if (criteria.directOnly && result.stops > 0) return false
+        if (result.stops > criteria.maxStops) return false
+        
+        return true
+    }
+    
+    private fun convertSearchResultToFlight(result: com.credair.core.model.SearchResult): Flight {
+        // For multi-stop flights, create a representative flight object
+        return Flight(
+            flightId = result.path[0], // Use first flight ID
+            flightNumber = "MULTI-${result.path.joinToString("-")}",
+            srcAirportCode = result.srcAirportCode,
+            destAirportCode = result.destAirportCode,
+            departureTime = result.departureTime,
+            arrivalTime = result.arrivalTime,
+            cost = result.totalCost,
+            airline = "Multiple" // Since this could span multiple airlines
+        )
     }
 }
