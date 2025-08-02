@@ -5,6 +5,7 @@ import com.credair.flight.search.models.request.SearchCriteria
 import com.credair.flight.search.models.request.SortCriteria
 import com.credair.core.model.FlightSearchResult
 import com.credair.flight.search.utils.validateSearchCriteria
+import com.credair.flight.search.utils.RouteValidationUtils
 import com.google.inject.Inject
 import com.google.inject.Singleton
 
@@ -21,7 +22,7 @@ class FlightSearchManager @Inject constructor(
     ): List<FlightSearchResult> {
         validateSearchCriteria(criteria)
 
-        return flightDao.searchFlightsOptimized(
+        val searchResults = flightDao.searchFlightsOptimized(
             criteria.sourceAirport,
             criteria.destinationAirport,
             criteria.departureDate,
@@ -31,5 +32,7 @@ class FlightSearchManager @Inject constructor(
             page,
             pageSize
         )
+
+        return searchResults.filter { RouteValidationUtils.isEfficientRoute(it) }
     }
 }
