@@ -2,7 +2,11 @@ package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.FlightDao
 import com.credair.core.model.Flight
-import com.credair.core.model.SearchResult
+import com.credair.core.model.FlightAirline
+import com.credair.core.model.FlightDetails
+import com.credair.core.model.FlightPrice
+import com.credair.core.model.FlightSegment
+import com.credair.core.model.FlightStop
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
@@ -10,8 +14,8 @@ import org.jdbi.v3.core.mapper.RowMapper
 import org.jdbi.v3.core.statement.StatementContext
 import java.sql.ResultSet
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.LocalDateTime
-import java.math.BigDecimal
 
 @Singleton
 class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
@@ -35,18 +39,36 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         )
     }
 
-    private val searchResultMapper = RowMapper { rs: ResultSet, _: StatementContext ->
-        val pathArray = rs.getArray("path")
-        val path = (pathArray.array as Array<*>).map { it as Long }.toLongArray()
-        
-        SearchResult(
-            srcAirportCode = rs.getString("src_airport_code"),
-            destAirportCode = rs.getString("dest_airport_code"),
-            path = path.toTypedArray(),
-            departureTime = rs.getTimestamp("departure_time").toLocalDateTime(),
-            arrivalTime = rs.getTimestamp("arrival_time").toLocalDateTime(),
-            stops = rs.getInt("stops"),
-            totalCost = rs.getBigDecimal("total_cost")
+    private val flightSegmentMapper = RowMapper { rs: ResultSet, _: StatementContext ->
+        FlightSegment(
+            airline = FlightAirline(
+                name = rs.getString("airline_name") ?: "Unknown Airline",
+                logoUrl = rs.getString("airline_logo_url") ?: ""
+            ),
+            flightDetails = FlightDetails(
+                flightNumber = rs.getString("flight_number"),
+                aircraftType = rs.getString("aircraft_type") ?: "Unknown"
+            ),
+            departure = FlightStop(
+                time = rs.getTimestamp("departure_time").toLocalDateTime().toLocalTime(),
+                airportCode = rs.getString("src_airport_code"),
+                city = rs.getString("src_airport_code") // Default to airport code, could be enhanced
+            ),
+            arrival = FlightStop(
+                time = rs.getTimestamp("arrival_time").toLocalDateTime().toLocalTime(),
+                airportCode = rs.getString("dest_airport_code"),
+                city = rs.getString("dest_airport_code") // Default to airport code, could be enhanced
+            ),
+            segmentDuration = Duration.between(
+                rs.getTimestamp("departure_time").toLocalDateTime(),
+                rs.getTimestamp("arrival_time").toLocalDateTime()
+            ),
+            price = FlightPrice(
+                amount = rs.getBigDecimal("total_cost"),
+                currency = "USD",
+                perPerson = true
+            ),
+            availableSeats = rs.getInt("available_seats")
         )
     }
 
@@ -130,6 +152,14 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         return entity.copy(updatedAt = now)
     }
 
+    override fun delete(id: Long): Boolean {
+        return jdbi.withHandle<Int, Exception> { handle ->
+            handle.createUpdate("DELETE FROM flights WHERE flight_id = :id")
+                .bind("id", id)
+                .execute()
+        } > 0
+    }
+
     override fun findByAirlineIdAndFlightNumber(airlineId: Long, flightNumber: String): Flight? {
         return jdbi.withHandle<Flight?, Exception> { handle ->
             handle.createQuery("""
@@ -160,37 +190,65 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
     override fun searchFlightsOptimized(
         srcAirportCode: String,
         destAirportCode: String,
-        limit: Int
-    ): List<SearchResult> {
-        return jdbi.withHandle<List<SearchResult>, Exception> { handle ->
-            handle.createQuery("""
-                SELECT *
-                FROM mv_flights_0_stop
-                WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
-                AND departure_time > NOW()
-                
-                UNION ALL
-                
-                SELECT *
-                FROM mv_flights_1_stop
-                WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
-                AND departure_time > NOW()
-                
-                UNION ALL
-                
-                SELECT *
-                FROM mv_flights_2_stop
-                WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
-                AND departure_time > NOW()
-                
-                ORDER BY stops ASC, total_cost ASC, arrival_time ASC
-                LIMIT :limit
-            """)
+        departureDate: LocalDateTime?,
+        noOfSeats: Int,
+        sortBy: String,
+        sortOrder: String,
+        page: Int,
+        pageSize: Int
+    ): List<FlightSegment> {
+        return jdbi.withHandle<List<FlightSegment>, Exception> { handle ->
+            val baseSql = """
+                SELECT mv.*, f.flight_number, f.aircraft_type, f.available_seats, a.name as airline_name, a.logo_url as airline_logo_url
+                FROM (
+                    SELECT *
+                    FROM mv_flights_0_stop
+                    WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
+                    AND departure_time > NOW()
+                    
+                    UNION ALL
+                    
+                    SELECT *
+                    FROM mv_flights_1_stop
+                    WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
+                    AND departure_time > NOW()
+                    
+                    UNION ALL
+                    
+                    SELECT *
+                    FROM mv_flights_2_stop
+                    WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
+                    AND departure_time > NOW()
+                ) mv
+                JOIN flights f ON f.flight_id = mv.path[1]
+                LEFT JOIN airlines a ON a.code = SUBSTRING(f.flight_number, 1, 2)
+                WHERE f.available_seats >= :noOfSeats
+            """
+            
+            val dateFilter = if (departureDate != null) " AND DATE(mv.departure_time) = DATE(:departureDate)" else ""
+            
+            val orderByClause = when (sortBy.lowercase()) {
+                "departure_time" -> "mv.departure_time"
+                "arrival_time" -> "mv.arrival_time"
+                "price" -> "mv.total_cost"
+                "duration" -> "(mv.arrival_time - mv.departure_time)"
+                else -> "mv.departure_time"
+            }
+            
+            val fullSql = "$baseSql$dateFilter ORDER BY $orderByClause ${sortOrder.uppercase()} LIMIT :pageSize OFFSET :offset"
+            
+            val query = handle.createQuery(fullSql)
                 .bind("srcAirportCode", srcAirportCode)
                 .bind("destAirportCode", destAirportCode)
-                .bind("limit", limit)
-                .map(searchResultMapper)
-                .list()
+                .bind("noOfSeats", noOfSeats)
+                .bind("pageSize", pageSize)
+                .bind("offset", page * pageSize)
+            
+            if (departureDate != null) {
+                query.bind("departureDate", Timestamp.valueOf(departureDate))
+            }
+            
+            query.map(flightSegmentMapper).list()
         }
     }
 }

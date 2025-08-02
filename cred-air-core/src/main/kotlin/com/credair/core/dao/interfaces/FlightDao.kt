@@ -1,7 +1,7 @@
 package com.credair.core.dao.interfaces
 
 import com.credair.core.model.Flight
-import com.credair.core.model.SearchResult
+import com.credair.core.model.FlightSegment
 import com.credair.common.dao.BaseDao
 import java.time.LocalDateTime
 
@@ -11,6 +11,11 @@ interface FlightDao : BaseDao<Flight, Long> {
     fun searchFlightsOptimized(
         srcAirportCode: String,
         destAirportCode: String,
-        limit: Int = 100
-    ): List<SearchResult>
+        departureDate: LocalDateTime? = null,
+        noOfSeats: Int = 1,
+        sortBy: String = "departure_time",
+        sortOrder: String = "ASC",
+        page: Int = 0,
+        pageSize: Int = 10
+    ): List<FlightSegment>
 }
