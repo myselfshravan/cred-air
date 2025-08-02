@@ -1,7 +1,7 @@
 package com.credair.flight.search.models.request
 
 data class SortCriteria(
-    val sortBy: SortBy = SortBy.DEPARTURE_TIME,
+    val sortBy: SortBy = SortBy.DURATION,
     val sortOrder: SortOrder = SortOrder.ASC
 )
 
