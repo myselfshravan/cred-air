@@ -14,5 +14,6 @@ data class FlightSearchResult(
     val stopCount: Int,
     val stopAirports: List<String>,
     val priceAmount: BigDecimal,
-    val priceCurrency: String
+    val priceCurrency: String,
+    val flightIds: List<Long>
 )
