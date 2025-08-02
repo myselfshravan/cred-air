@@ -1,4 +1,4 @@
-package com.credair.flight.search.models.response
+package com.credair.core.model
 
 import java.math.BigDecimal
 import java.time.LocalTime
@@ -11,7 +11,7 @@ import java.time.Duration
 data class FlightJourney(
     val totalDuration: Duration,
     val totalTimeInAir: Duration,
-    val price: Price,
+    val price: FlightPrice,
     val seatsLeft: Int,
     val segments: List<FlightSegment>,
     val layovers: List<Layover>
@@ -31,11 +31,13 @@ data class FlightJourney(
  * Represents a single leg of a flight journey (e.g., NYC -> DEN).
  */
 data class FlightSegment(
-    val airline: Airline,
+    val airline: FlightAirline,
     val flightDetails: FlightDetails,
     val departure: FlightStop,
     val arrival: FlightStop,
-    val segmentDuration: Duration
+    val segmentDuration: Duration,
+    val price: FlightPrice,
+    val availableSeats: Int
 )
 
 /**
@@ -50,9 +52,7 @@ data class Layover(
         get() = "${duration.toMinutes()}m layover in $airportName"
 }
 
-// Reusable data classes from the previous response
-
-data class Airline(
+data class FlightAirline(
     val name: String,
     val logoUrl: String // Assuming a URL or resource ID for the logo
 )
@@ -68,7 +68,7 @@ data class FlightStop(
     val city: String
 )
 
-data class Price(
+data class FlightPrice(
     val amount: BigDecimal,
     val currency: String,
     val perPerson: Boolean = true
