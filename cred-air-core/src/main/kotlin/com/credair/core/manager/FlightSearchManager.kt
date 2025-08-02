@@ -110,10 +110,11 @@ class FlightSearchManager @Inject constructor(private val flightDao: FlightDao) 
             flightNumber = "MULTI-${result.path.joinToString("-")}",
             srcAirportCode = result.srcAirportCode,
             destAirportCode = result.destAirportCode,
-            departureTime = result.departureTime,
-            arrivalTime = result.arrivalTime,
-            cost = result.totalCost,
-            airline = "Multiple" // Since this could span multiple airlines
+            departureTime = java.sql.Timestamp.valueOf(result.departureTime),
+            arrivalTime = java.sql.Timestamp.valueOf(result.arrivalTime),
+            price = result.totalCost,
+            totalSeats = 100, // Default value
+            availableSeats = 50 // Default value
         )
     }
 }

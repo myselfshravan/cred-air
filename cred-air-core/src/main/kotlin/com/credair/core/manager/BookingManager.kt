@@ -155,7 +155,7 @@ class BookingManager @Inject constructor(
         
         val flight = flightDao.findById(booking.flightId)
         flight?.let {
-            if (it.departureTime.isBefore(LocalDateTime.now().plusHours(2))) {
+            if (it.departureTime.toLocalDateTime().isBefore(LocalDateTime.now().plusHours(2))) {
                 throw IllegalStateException("Check-in window has closed")
             }
         }
