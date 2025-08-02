@@ -8,7 +8,6 @@ import com.credair.flight.search.models.request.SortOrder
 import com.credair.flight.search.models.response.FlightSearchResponse
 import com.google.inject.Inject
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.ws.rs.*
 import javax.ws.rs.core.MediaType
@@ -27,13 +26,18 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
         @QueryParam("date") departureDate: String?,
         @QueryParam("minSeats") minSeats: Int?,
         @QueryParam("sortBy") sortBy: SortBy?,
-        @QueryParam("sortOrder") sortOrder: SortOrder?
+        @QueryParam("sortOrder") sortOrder: SortOrder?,
+        @QueryParam("page") page: Int?,
+        @QueryParam("pageSize") pageSize: Int?
     ): Response {
         return try {
             println("Searching for flights from $sourceAirportCode to $destinationAirportCode on $departureDate")
             val parsedDate = departureDate?.let { 
                 LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay()
             }
+            
+            val currentPage = page ?: 0
+            val currentPageSize = pageSize ?: 10
             
             val criteria = SearchCriteria(
                 sourceAirport = sourceAirportCode,
@@ -47,8 +51,16 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
                 sortOrder = sortOrder ?: SortOrder.ASC
             )
             
-            val results = flightSearchManager.searchFlights(criteria, sortCriteria)
-            val response = FlightSearchResponse(results = results)
+            val results = flightSearchManager.searchFlights(criteria, sortCriteria, currentPage, currentPageSize)
+            val nextStartIndex = (currentPage + 1) * currentPageSize
+            val hasMore = results.isNotEmpty()
+            
+            val response = FlightSearchResponse(
+                results = results,
+                nextStartIndex = nextStartIndex,
+                hasMore = hasMore,
+                pageSize = currentPageSize
+            )
             Response.ok(response).build()
             
         } catch (e: IllegalArgumentException) {

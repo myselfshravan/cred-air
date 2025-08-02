@@ -167,9 +167,9 @@ const convertToFlight = (result: FlightSearchResult, index: number): Flight => {
   };
 };
 
-export const searchFlights = async (params: SearchParams): Promise<Flight[]> => {
+export const searchFlights = async (params: SearchParams, page: number = 0, pageSize: number = 10): Promise<{ flights: Flight[], hasMore: boolean, totalResults: number }> => {
   try {
-    const url = `http://0.0.0.0:8084/search/flights?from=${params.from}&to=${params.to}&date=${params.departDate}&passengers=${params.passengers}`;
+    const url = `http://0.0.0.0:8084/search/flights?from=${params.from}&to=${params.to}&date=${params.departDate}&passengers=${params.passengers}&page=${page}&pageSize=${pageSize}`;
     
     const response = await fetch(url);
     
@@ -179,14 +179,26 @@ export const searchFlights = async (params: SearchParams): Promise<Flight[]> => 
     
     const data: FlightSearchResponse = await response.json();
     
-    return data.results.map((result, index) => convertToFlight(result, index));
+    const flights = data.results.map((result, index) => convertToFlight(result, index));
+    
+    return {
+      flights,
+      hasMore: data.hasMore,
+      totalResults: data.totalResults
+    };
   } catch (error) {
     console.error('Error searching flights:', error);
     // Fallback to mock data in case of API failure
-    return mockFlights.filter(flight => 
+    const mockData = mockFlights.filter(flight => 
       flight.departure.airport.code === params.from && 
       flight.arrival.airport.code === params.to
     );
+    
+    return {
+      flights: mockData,
+      hasMore: false,
+      totalResults: mockData.length
+    };
   }
 };
 

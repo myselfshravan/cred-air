@@ -21,6 +21,10 @@ export interface FlightSearchResult {
 
 export interface FlightSearchResponse {
   results: FlightSearchResult[];
+  totalResults: number;
+  nextStartIndex: number;
+  hasMore: boolean;
+  pageSize: number;
 }
 
 export interface Flight {

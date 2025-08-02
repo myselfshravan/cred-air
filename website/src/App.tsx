@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { SearchForm } from './components/SearchForm';
 import { FlightCard } from './components/FlightCard';
@@ -19,13 +19,50 @@ function App() {
   const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalResults, setTotalResults] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const loadMoreFlights = useCallback(async () => {
+    if (!searchParams || loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const { flights: moreResults, hasMore: moreAvailable } = await searchFlights(searchParams, nextPage, 10);
+      setFlights(prev => [...prev, ...moreResults]);
+      setHasMore(moreAvailable);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.error('Failed to load more flights:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [searchParams, loadingMore, hasMore, currentPage]);
+
+  const lastFlightElementRef = useCallback((node: HTMLDivElement) => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreFlights();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore, loadMoreFlights]);
 
   const handleSearch = async (params: SearchParams) => {
     setLoading(true);
     setSearchParams(params);
+    setCurrentPage(0);
+    setFlights([]);
     try {
-      const results = await searchFlights(params);
+      const { flights: results, hasMore: moreAvailable, totalResults: total } = await searchFlights(params, 0, 10);
       setFlights(results);
+      setHasMore(moreAvailable);
+      setTotalResults(total);
+      setCurrentPage(0);
       setBookingStep('results');
     } catch (error) {
       console.error('Search failed:', error);
@@ -50,6 +87,9 @@ function App() {
     setSelectedFlight(null);
     setBooking(null);
     setSearchParams(null);
+    setHasMore(false);
+    setTotalResults(0);
+    setCurrentPage(0);
   };
 
   const handleBackToResults = () => {
@@ -88,6 +128,11 @@ function App() {
                     <p className="text-gray-600">
                       {searchParams?.from} → {searchParams?.to} • {searchParams?.departDate} • {searchParams?.passengers} passenger{searchParams?.passengers !== 1 ? 's' : ''}
                     </p>
+                    {totalResults > 0 && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Showing {flights.length} of {totalResults} flights
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={handleNewSearch}
@@ -98,13 +143,31 @@ function App() {
                 </div>
                 
                 <div className="space-y-4">
-                  {flights.map(flight => (
-                    <FlightCard
+                  {flights.map((flight, index) => (
+                    <div
                       key={flight.id}
-                      flight={flight}
-                      onSelect={handleFlightSelect}
-                    />
+                      ref={index === flights.length - 1 ? lastFlightElementRef : null}
+                    >
+                      <FlightCard
+                        flight={flight}
+                        onSelect={handleFlightSelect}
+                      />
+                    </div>
                   ))}
+                  
+                  {loadingMore && (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600">Loading more flights...</span>
+                    </div>
+                  )}
+                  
+                  {!hasMore && flights.length > 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">You've reached the end of the results</p>
+                    </div>
+                  )}
+                  
                   {flights.length === 0 && !loading && (
                     <div className="text-center py-12">
                       <p className="text-gray-500">No flights found for your search criteria.</p>
