@@ -46,7 +46,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
             arrivalAirport = rs.getString("dest_airport_code"),
             totalDurationMinutes = rs.getInt("total_time_minutes"),
             stopCount = rs.getInt("stops"),
-            stopAirports = rs.getString("path")?.split(",")?.dropLast(1) ?: emptyList(),
+            stopAirports = (rs.getArray("layover_points")?.array as? Array<String>)?.toList() ?: emptyList(),
             priceAmount = rs.getBigDecimal("total_cost"),
             priceCurrency = "USD"
         )
@@ -185,7 +185,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                     total_cost,
                     total_time_minutes,
                     stops,
-                    path,
+                    layover_points,
                     min_available_seats,
                     airline_name,
                     airline_logo_url,

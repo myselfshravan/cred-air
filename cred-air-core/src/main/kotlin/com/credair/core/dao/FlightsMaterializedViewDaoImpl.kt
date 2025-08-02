@@ -14,7 +14,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
         return jdbi.withHandle<Int, Exception> { handle ->
             handle.createUpdate("""
                 DELETE FROM mv_flight_journeys 
-                WHERE :flightId = ANY(path)
+                WHERE :flightId = ANY(flight_number)
             """)
             .bind("flightId", flightId)
             .execute()
@@ -27,11 +27,11 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                 UPDATE mv_flight_journeys 
                 SET min_available_seats = (
                     SELECT MIN(f.available_seats)
-                    FROM unnest(path) AS flight_id
+                    FROM unnest(flight_number) AS flight_id
                     JOIN flights f ON f.flight_id = flight_id
                     WHERE f.active = true
                 )
-                WHERE :flightId = ANY(path)
+                WHERE :flightId = ANY(flight_number)
             """)
             .bind("flightId", flightId)
             .execute()
@@ -43,7 +43,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
             handle.createUpdate("""
                 INSERT INTO mv_flight_journeys (
                     src_airport_code, dest_airport_code, departure_date, departure_time, 
-                    arrival_time, total_time_minutes, stops, path, total_cost, 
+                    arrival_time, total_time_minutes, stops, layover_points, total_cost, 
                     min_available_seats, airline_name, airline_logo_url, aircraft_type, flight_number
                 )
                 SELECT
@@ -54,20 +54,20 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                     f1.arrives_at as arrival_time,
                     EXTRACT(EPOCH FROM (f1.arrives_at - f1.departs_at))/60 as total_time_minutes,
                     0 AS stops,
-                    ARRAY[f1.flight_id] AS path,
+                    ARRAY[]::text[] AS layover_points,
                     f1.price AS total_cost,
                     f1.available_seats AS min_available_seats,
                     a1.name AS airline_name,
                     a1.logo_url AS airline_logo_url,
                     f1.aircraft_type,
-                    f1.flight_number
+                    ARRAY[f1.flight_id] AS flight_number
                 FROM flights AS f1
                 LEFT JOIN airlines AS a1 ON a1.id = f1.airline_id
                 WHERE f1.flight_id = :flightId
                   AND f1.departs_at >= NOW()
                   AND f1.active = true
                   AND f1.available_seats > 0
-                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, path) DO NOTHING
+                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, layover_points) DO NOTHING
             """)
             .bind("flightId", flightId)
             .execute()
@@ -79,7 +79,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
             handle.createUpdate("""
                 INSERT INTO mv_flight_journeys (
                     src_airport_code, dest_airport_code, departure_date, departure_time, 
-                    arrival_time, total_time_minutes, stops, path, total_cost, 
+                    arrival_time, total_time_minutes, stops, layover_points, total_cost, 
                     min_available_seats, airline_name, airline_logo_url, aircraft_type, flight_number
                 )
                 SELECT
@@ -90,13 +90,13 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                     f2.arrives_at as arrival_time,
                     EXTRACT(EPOCH FROM (f2.arrives_at - f1.departs_at))/60 as total_time_minutes,
                     1 AS stops,
-                    ARRAY[f1.flight_id, f2.flight_id] AS path,
+                    ARRAY[f1.dest_airport_code] AS layover_points,
                     f1.price + f2.price AS total_cost,
                     LEAST(f1.available_seats, f2.available_seats) AS min_available_seats,
                     a1.name AS airline_name,
                     a1.logo_url AS airline_logo_url,
                     f1.aircraft_type,
-                    f1.flight_number || ',' || f2.flight_number AS flight_number
+                    ARRAY[f1.flight_id, f2.flight_id] AS flight_number
                 FROM flights AS f1
                 JOIN flights AS f2 ON f1.dest_airport_code = f2.src_airport_code
                 LEFT JOIN airlines AS a1 ON a1.id = f1.airline_id
@@ -108,7 +108,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                   AND f2.available_seats > 0
                   AND f2.departs_at > f1.arrives_at + INTERVAL '45 minutes'
                   AND f2.departs_at < f1.arrives_at + INTERVAL '24 hours'
-                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, path) DO NOTHING
+                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, layover_points) DO NOTHING
             """)
             .bind("flightId", flightId)
             .execute()
@@ -120,7 +120,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
             handle.createUpdate("""
                 INSERT INTO mv_flight_journeys (
                     src_airport_code, dest_airport_code, departure_date, departure_time, 
-                    arrival_time, total_time_minutes, stops, path, total_cost, 
+                    arrival_time, total_time_minutes, stops, layover_points, total_cost, 
                     min_available_seats, airline_name, airline_logo_url, aircraft_type, flight_number
                 )
                 SELECT
@@ -131,13 +131,13 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                     f2.arrives_at as arrival_time,
                     EXTRACT(EPOCH FROM (f2.arrives_at - f1.departs_at))/60 as total_time_minutes,
                     1 AS stops,
-                    ARRAY[f1.flight_id, f2.flight_id] AS path,
+                    ARRAY[f1.dest_airport_code] AS layover_points,
                     f1.price + f2.price AS total_cost,
                     LEAST(f1.available_seats, f2.available_seats) AS min_available_seats,
                     a1.name AS airline_name,
                     a1.logo_url AS airline_logo_url,
                     f1.aircraft_type,
-                    f1.flight_number || ',' || f2.flight_number AS flight_number
+                    ARRAY[f1.flight_id, f2.flight_id] AS flight_number
                 FROM flights AS f1
                 JOIN flights AS f2 ON f1.dest_airport_code = f2.src_airport_code
                 LEFT JOIN airlines AS a1 ON a1.id = f1.airline_id
@@ -149,7 +149,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                   AND f2.available_seats > 0
                   AND f2.departs_at > f1.arrives_at + INTERVAL '45 minutes'
                   AND f2.departs_at < f1.arrives_at + INTERVAL '24 hours'
-                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, path) DO NOTHING
+                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, layover_points) DO NOTHING
             """)
             .bind("flightId", flightId)
             .execute()
@@ -166,7 +166,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
             totalInserted += handle.createUpdate("""
                 INSERT INTO mv_flight_journeys (
                     src_airport_code, dest_airport_code, departure_date, departure_time, 
-                    arrival_time, total_time_minutes, stops, path, total_cost, 
+                    arrival_time, total_time_minutes, stops, layover_points, total_cost, 
                     min_available_seats, airline_name, airline_logo_url, aircraft_type, flight_number
                 )
                 SELECT
@@ -177,13 +177,13 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                     f3.arrives_at as arrival_time,
                     EXTRACT(EPOCH FROM (f3.arrives_at - f1.departs_at))/60 as total_time_minutes,
                     2 AS stops,
-                    ARRAY[f1.flight_id, f2.flight_id, f3.flight_id] AS path,
+                    ARRAY[f1.dest_airport_code, f2.dest_airport_code] AS layover_points,
                     f1.price + f2.price + f3.price AS total_cost,
                     LEAST(f1.available_seats, f2.available_seats, f3.available_seats) AS min_available_seats,
                     a1.name AS airline_name,
                     a1.logo_url AS airline_logo_url,
                     f1.aircraft_type,
-                    f1.flight_number || ',' || f2.flight_number || ',' || f3.flight_number AS flight_number
+                    ARRAY[f1.flight_id, f2.flight_id, f3.flight_id] AS flight_number
                 FROM flights AS f1
                 JOIN flights AS f2 ON f1.dest_airport_code = f2.src_airport_code
                 JOIN flights AS f3 ON f2.dest_airport_code = f3.src_airport_code
@@ -200,7 +200,7 @@ class FlightsMaterializedViewDaoImpl @Inject constructor(
                   AND f2.departs_at < f1.arrives_at + INTERVAL '24 hours'
                   AND f3.departs_at > f2.arrives_at + INTERVAL '45 minutes'
                   AND f3.departs_at < f2.arrives_at + INTERVAL '24 hours'
-                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, path) DO NOTHING
+                ON CONFLICT (src_airport_code, dest_airport_code, departure_date, departure_time, layover_points) DO NOTHING
             """)
             .bind("flightId", flightId)
             .execute()
