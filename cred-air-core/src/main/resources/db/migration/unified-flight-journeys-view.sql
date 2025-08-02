@@ -9,7 +9,7 @@ SELECT
     arrives_at as arrival_time,
     EXTRACT(EPOCH FROM (arrives_at - departs_at))/60 as total_time_minutes,
     stops,
-    path,
+    layover_points,
     total_cost,
     min_available_seats,
     airline_name,
@@ -24,13 +24,13 @@ FROM (
         f1.departs_at,
         f1.arrives_at,
         0 AS stops,
-        ARRAY[f1.flight_id] AS path,
+        ARRAY[]::text[] AS layover_points,
         f1.price AS total_cost,
         f1.available_seats AS min_available_seats,
         a1.name AS airline_name,
         a1.logo_url AS airline_logo_url,
         f1.aircraft_type,
-        f1.flight_number
+        ARRAY[f1.flight_id] AS flight_number
     FROM flights AS f1
     LEFT JOIN airlines AS a1 ON a1.id = f1.airline_id
     WHERE f1.departs_at >= NOW()
@@ -46,13 +46,13 @@ FROM (
         f1.departs_at,
         f2.arrives_at,
         1 AS stops,
-        ARRAY[f1.flight_id, f2.flight_id] AS path,
+        ARRAY[f1.dest_airport_code] AS layover_points,
         f1.price + f2.price AS total_cost,
         LEAST(f1.available_seats, f2.available_seats) AS min_available_seats,
         a1.name AS airline_name,
         a1.logo_url AS airline_logo_url,
         f1.aircraft_type,
-        f1.flight_number || ',' || f2.flight_number AS flight_number
+        ARRAY[f1.flight_id, f2.flight_id] AS flight_number
     FROM flights AS f1
     JOIN flights AS f2 ON f1.dest_airport_code = f2.src_airport_code
     LEFT JOIN airlines AS a1 ON a1.id = f1.airline_id
@@ -74,13 +74,13 @@ FROM (
         f1.departs_at,
         f3.arrives_at,
         2 AS stops,
-        ARRAY[f1.flight_id, f2.flight_id, f3.flight_id] AS path,
+        ARRAY[f1.dest_airport_code, f2.dest_airport_code] AS layover_points,
         f1.price + f2.price + f3.price AS total_cost,
         LEAST(f1.available_seats, f2.available_seats, f3.available_seats) AS min_available_seats,
         a1.name AS airline_name,
         a1.logo_url AS airline_logo_url,
         f1.aircraft_type,
-        f1.flight_number || ',' || f2.flight_number || ',' || f3.flight_number AS flight_number
+        ARRAY[f1.flight_id, f2.flight_id, f3.flight_id] AS flight_number
     FROM flights AS f1
     JOIN flights AS f2 ON f1.dest_airport_code = f2.src_airport_code
     JOIN flights AS f3 ON f2.dest_airport_code = f3.src_airport_code
@@ -102,7 +102,7 @@ WITH DATA;
 
 -- Create optimized indexes for query pattern: src_airport, dest_airport, departure_date, available_seats
 CREATE UNIQUE INDEX idx_flight_journeys_primary 
-ON mv_flight_journeys (src_airport_code, dest_airport_code, departure_date, departure_time, path);
+ON mv_flight_journeys (src_airport_code, dest_airport_code, departure_date, departure_time, layover_points);
 
 -- Index for filtering by available seats
 CREATE INDEX idx_flight_journeys_seats 
