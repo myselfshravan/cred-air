@@ -1,13 +1,14 @@
 import React from 'react';
-import { Plane, Clock, MapPin, Circle } from 'lucide-react';
+import { Plane, Clock, MapPin } from 'lucide-react';
 import { Flight } from '../types/flight';
 
 interface FlightCardProps {
   flight: Flight;
   onSelect: (flight: Flight) => void;
+  loading?: boolean;
 }
 
-export const FlightCard: React.FC<FlightCardProps> = ({ flight, onSelect }) => {
+export const FlightCard: React.FC<FlightCardProps> = ({ flight, onSelect, loading = false }) => {
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 hover:border-blue-300">
       <div className="flex items-center justify-between mb-4">
@@ -95,9 +96,13 @@ export const FlightCard: React.FC<FlightCardProps> = ({ flight, onSelect }) => {
         
         <button
           onClick={() => onSelect(flight)}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+          disabled={loading}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
         >
-          Select Flight
+          {loading && (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          )}
+          <span>{loading ? 'Loading...' : 'Select Flight'}</span>
         </button>
       </div>
     </div>

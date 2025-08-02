@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { SearchForm } from './components/SearchForm';
 import { FlightCard } from './components/FlightCard';
@@ -6,7 +6,7 @@ import { BookingForm } from './components/BookingForm';
 import { BookingConfirmation } from './components/BookingConfirmation';
 import { AdminPanel } from './components/AdminPanel';
 import { Flight, SearchParams, BookingDetails } from './types/flight';
-import { searchFlights } from './services/api';
+import { searchFlights, getFlightDetails } from './services/api';
 
 type AppView = 'search' | 'admin';
 type BookingStep = 'search' | 'results' | 'booking' | 'confirmation';
@@ -23,6 +23,7 @@ function App() {
   const [hasMore, setHasMore] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [loadingFlightDetails, setLoadingFlightDetails] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
   const loadMoreFlights = useCallback(async () => {
     if (!searchParams || loadingMore || !hasMore) return;
@@ -71,9 +72,24 @@ function App() {
     }
   };
 
-  const handleFlightSelect = (flight: Flight) => {
-    setSelectedFlight(flight);
-    setBookingStep('booking');
+  const handleFlightSelect = async (flight: Flight) => {
+    if (!flight.flightIds || flight.flightIds.length === 0) {
+      console.error('No flight IDs available for selected flight');
+      return;
+    }
+
+    setLoadingFlightDetails(true);
+    try {
+      const detailedFlight = await getFlightDetails(flight.flightIds);
+      setSelectedFlight(detailedFlight);
+      setBookingStep('booking');
+    } catch (error) {
+      console.error('Failed to fetch flight details:', error);
+      setSelectedFlight(flight);
+      setBookingStep('booking');
+    } finally {
+      setLoadingFlightDetails(false);
+    }
   };
 
   const handleBookingComplete = (bookingDetails: BookingDetails) => {
@@ -151,6 +167,7 @@ function App() {
                       <FlightCard
                         flight={flight}
                         onSelect={handleFlightSelect}
+                        loading={loadingFlightDetails}
                       />
                     </div>
                   ))}

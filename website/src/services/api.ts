@@ -1,106 +1,6 @@
 import { Flight, SearchParams, BookingDetails, PaymentDetails, FlightSearchResponse, FlightSearchResult } from '../types/flight';
 
-// Mock flight data
-const mockFlights: Flight[] = [
-  {
-    id: '1',
-    airline: 'Credair Express',
-    flightNumber: 'CE101',
-    departure: {
-      airport: { code: 'NYC', name: 'John F. Kennedy International Airport', city: 'New York', country: 'USA' },
-      time: '08:00',
-      date: '2024-02-15'
-    },
-    arrival: {
-      airport: { code: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles', country: 'USA' },
-      time: '11:30',
-      date: '2024-02-15'
-    },
-    duration: '5h 30m',
-    price: 299,
-    currency: 'USD',
-    availableSeats: 42,
-    aircraft: 'Boeing 737-800',
-    stops: 0
-  },
-  {
-    id: '2',
-    airline: 'Credair Premium',
-    flightNumber: 'CP205',
-    departure: {
-      airport: { code: 'NYC', name: 'John F. Kennedy International Airport', city: 'New York', country: 'USA' },
-      time: '14:15',
-      date: '2024-02-15'
-    },
-    arrival: {
-      airport: { code: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles', country: 'USA' },
-      time: '17:45',
-      date: '2024-02-15'
-    },
-    duration: '5h 30m',
-    price: 449,
-    currency: 'USD',
-    availableSeats: 28,
-    aircraft: 'Airbus A320',
-    stops: 0
-  },
-  {
-    id: '3',
-    airline: 'Credair Connect',
-    flightNumber: 'CC308',
-    departure: {
-      airport: { code: 'NYC', name: 'John F. Kennedy International Airport', city: 'New York', country: 'USA' },
-      time: '19:20',
-      date: '2024-02-15'
-    },
-    arrival: {
-      airport: { code: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles', country: 'USA' },
-      time: '23:55',
-      date: '2024-02-15'
-    },
-    duration: '6h 35m',
-    price: 199,
-    currency: 'USD',
-    availableSeats: 15,
-    aircraft: 'Boeing 737-700',
-    stops: 1,
-    stopDetails: [{
-      airport: { code: 'DEN', name: 'Denver International Airport', city: 'Denver', country: 'USA' },
-      arrivalTime: '21:45',
-      departureTime: '22:30',
-      layoverDuration: '45m'
-    }]
-  },
-  {
-    id: '4',
-    airline: 'Credair Economy',
-    flightNumber: 'CE412',
-    departure: {
-      airport: { code: 'NYC', name: 'John F. Kennedy International Airport', city: 'New York', country: 'USA' },
-      time: '06:30',
-      date: '2024-02-15'
-    },
-    arrival: {
-      airport: { code: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles', country: 'USA' },
-      time: '12:15',
-      date: '2024-02-15'
-    },
-    duration: '7h 45m',
-    price: 159,
-    currency: 'USD',
-    availableSeats: 8,
-    aircraft: 'Boeing 737-800',
-    stops: 1,
-    stopDetails: [{
-      airport: { code: 'CHI', name: 'Chicago O\'Hare International Airport', city: 'Chicago', country: 'USA' },
-      arrivalTime: '08:45',
-      departureTime: '10:30',
-      layoverDuration: '1h 45m'
-    }]
-  }
-];
-
-const convertToFlight = (result: FlightSearchResult, index: number): Flight => {
+const convertToFlight = (result: FlightSearchResult): Flight => {
   const departureDate = new Date(result.departureTime);
   const arrivalDate = new Date(result.arrivalTime);
   
@@ -123,7 +23,7 @@ const convertToFlight = (result: FlightSearchResult, index: number): Flight => {
   };
 
   return {
-    id: `flight_${index}`,
+    id: result.flightIds.join('-'),
     airline: result.airlineName,
     flightNumber: `${result.airlineName.substring(0, 2).toUpperCase()}${Math.floor(Math.random() * 900) + 100}`,
     departure: {
@@ -163,7 +63,8 @@ const convertToFlight = (result: FlightSearchResult, index: number): Flight => {
       departureTime: '',
       layoverDuration: ''
     })),
-    airlineLogoUrl: result.airlineLogoUrl
+    airlineLogoUrl: result.airlineLogoUrl,
+    flightIds: result.flightIds
   };
 };
 
@@ -179,7 +80,7 @@ export const searchFlights = async (params: SearchParams, page: number = 0, page
     
     const data: FlightSearchResponse = await response.json();
     
-    const flights = data.results.map((result, index) => convertToFlight(result, index));
+    const flights = data.results.map((result) => convertToFlight(result));
     
     return {
       flights,
@@ -188,16 +89,10 @@ export const searchFlights = async (params: SearchParams, page: number = 0, page
     };
   } catch (error) {
     console.error('Error searching flights:', error);
-    // Fallback to mock data in case of API failure
-    const mockData = mockFlights.filter(flight => 
-      flight.departure.airport.code === params.from && 
-      flight.arrival.airport.code === params.to
-    );
-    
     return {
-      flights: mockData,
+      flights: [],
       hasMore: false,
-      totalResults: mockData.length
+      totalResults: 0
     };
   }
 };
@@ -205,7 +100,7 @@ export const searchFlights = async (params: SearchParams, page: number = 0, page
 export const bookFlight = async (bookingDetails: BookingDetails): Promise<{ success: boolean; bookingReference: string }> => {
   // Simulate booking API call
   await new Promise(resolve => setTimeout(resolve, 1500));
-  
+
   const bookingReference = `CR${Date.now().toString().slice(-6)}`;
   return { success: true, bookingReference };
 };
@@ -219,14 +114,38 @@ export const processPayment = async (paymentDetails: PaymentDetails, amount: num
     throw new Error('Invalid card number');
   }
   
+  console.log('Processing payment for amount:', amount);
+  
   const transactionId = `TXN${Date.now().toString().slice(-8)}`;
   return { success: true, transactionId };
+};
+
+export const getFlightDetails = async (flightIds: number[]): Promise<Flight> => {
+  try {
+    const url = `http://0.0.0.0:8084/getDetails`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ flightIds }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const flightDetails: Flight = await response.json();
+    return flightDetails;
+  } catch (error) {
+    console.error('Error fetching flight details:', error);
+    throw error;
+  }
 };
 
 export const uploadFlightSheet = async (file: File): Promise<{ success: boolean; processed: number }> => {
   // Simulate file processing
   await new Promise(resolve => setTimeout(resolve, 3000));
   
-  // Mock processing result
   return { success: true, processed: Math.floor(Math.random() * 100) + 50 };
 };

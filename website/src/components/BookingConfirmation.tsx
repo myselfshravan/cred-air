@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Plane, Calendar, Users, Mail } from 'lucide-react';
+import { CheckCircle, Plane, Users, Mail } from 'lucide-react';
 import { BookingDetails } from '../types/flight';
 
 interface BookingConfirmationProps {
@@ -50,7 +50,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <h4 className="font-semibold text-gray-900">Passengers</h4>
             </div>
             <div className="space-y-2 text-sm text-gray-600">
-              {booking.passengers.map((passenger, index) => (
+              {booking.passengers.map((passenger) => (
                 <p key={passenger.id}>
                   {passenger.title} {passenger.firstName} {passenger.lastName}
                 </p>

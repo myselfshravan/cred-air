@@ -17,6 +17,7 @@ export interface FlightSearchResult {
   stopAirports: string[];
   priceAmount: number;
   priceCurrency: string;
+  flightIds: number[];
 }
 
 export interface FlightSearchResponse {
@@ -54,6 +55,7 @@ export interface Flight {
     layoverDuration: string;
   }[];
   airlineLogoUrl?: string;
+  flightIds?: number[];
 }
 
 export interface SearchParams {

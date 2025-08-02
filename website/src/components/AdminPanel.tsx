@@ -23,6 +23,7 @@ export const AdminPanel: React.FC = () => {
       const result = await uploadFlightSheet(uploadFile);
       setUploadResult(result);
     } catch (error) {
+      console.error('Upload failed:', error);
       setUploadResult({ success: false, processed: 0 });
     } finally {
       setUploading(false);
