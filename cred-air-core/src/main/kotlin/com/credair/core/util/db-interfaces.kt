@@ -1,22 +1,7 @@
 package com.credair.core.util
 
-import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.core.kotlin.KotlinPlugin
-import org.jdbi.v3.sqlobject.kotlin.KotlinSqlObjectPlugin
 import java.sql.DriverManager
 import javax.sql.DataSource
-
-object DatabaseUtils {
-    fun createDataSource(config: DatabaseConfig): DataSource {
-        return SimpleDataSource(config.url, config.username, config.password)
-    }
-    
-    fun createJdbi(dataSource: DataSource): Jdbi {
-        return Jdbi.create(dataSource)
-            .installPlugin(KotlinPlugin())
-            .installPlugin(KotlinSqlObjectPlugin())
-    }
-}
 
 interface DatabaseConfig {
     val url: String

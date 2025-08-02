@@ -2,7 +2,6 @@ package com.credair.flight.search
 
 import com.credair.flight.search.config.FlightSearchModule
 import com.credair.flight.search.resource.FlightSearchResource
-import com.credair.core.util.DatabaseConfig
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
@@ -18,8 +17,16 @@ class FlightSearchApplication : Application<FlightSearchConfiguration>() {
 
     override fun run(configuration: FlightSearchConfiguration, environment: Environment) {
         val injector = Guice.createInjector(FlightSearchModule())
-        val flightSearchResource = injector.getInstance(FlightSearchResource::class.java)
-        environment.jersey().register(flightSearchResource)
+        resources().forEach { resource ->
+            environment.jersey()
+                .register(injector.getInstance(resource))
+        }
+    }
+
+    private fun resources(): List<Class<*>> {
+        return listOf(
+            FlightSearchResource::class.java
+        )
     }
 
     companion object {
@@ -30,13 +37,4 @@ class FlightSearchApplication : Application<FlightSearchConfiguration>() {
     }
 }
 
-class FlightSearchConfiguration : Configuration() {
-    val database = DatabaseConfiguration()
-}
-
-class DatabaseConfiguration : com.credair.core.util.DatabaseConfig {
-    override var url: String = "jdbc:h2:mem:flight_search_db"
-    override var driver: String = "org.h2.Driver"
-    override var username: String = "sa"
-    override var password: String = ""
-}
+class FlightSearchConfiguration : Configuration()

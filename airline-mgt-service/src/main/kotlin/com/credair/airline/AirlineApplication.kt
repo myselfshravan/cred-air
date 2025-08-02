@@ -2,7 +2,6 @@ package com.credair.airline
 
 import com.credair.airline.config.AirlineModule
 import com.credair.airline.resource.AirlineResource
-import com.credair.core.util.DatabaseConfig
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
@@ -18,8 +17,16 @@ class AirlineApplication : Application<AirlineConfiguration>() {
 
     override fun run(configuration: AirlineConfiguration, environment: Environment) {
         val injector = Guice.createInjector(AirlineModule())
-        val airlineResource = injector.getInstance(AirlineResource::class.java)
-        environment.jersey().register(airlineResource)
+        resources().forEach { resource ->
+            environment.jersey()
+                .register(injector.getInstance(resource))
+        }
+    }
+
+    private fun resources(): List<Class<*>> {
+        return listOf(
+            AirlineResource::class.java
+        )
     }
 
     companion object {
@@ -30,13 +37,4 @@ class AirlineApplication : Application<AirlineConfiguration>() {
     }
 }
 
-class AirlineConfiguration : Configuration() {
-    val database = DatabaseConfiguration()
-}
-
-class DatabaseConfiguration : DatabaseConfig {
-    override var url: String = "jdbc:h2:mem:airline_db"
-    override var driver: String = "org.h2.Driver"
-    override var username: String = "sa"
-    override var password: String = ""
-}
+class AirlineConfiguration : Configuration()

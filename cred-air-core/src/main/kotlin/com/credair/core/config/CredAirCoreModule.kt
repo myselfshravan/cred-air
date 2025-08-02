@@ -9,17 +9,42 @@ import com.credair.core.dao.interfaces.FlightDao
 import com.credair.core.manager.AirlineManager
 import com.credair.core.manager.BookingManager
 import com.credair.core.manager.FlightSearchManager
+import com.credair.core.util.DatabaseConfig
+import com.credair.core.util.SimpleDataSource
 import com.google.inject.AbstractModule
+import com.google.inject.Provides
 import com.google.inject.Singleton
+import org.jdbi.v3.core.Jdbi
+import org.jdbi.v3.core.kotlin.KotlinPlugin
+import org.jdbi.v3.sqlobject.kotlin.KotlinSqlObjectPlugin
+import javax.sql.DataSource
 
 class CredAirCoreModule : AbstractModule() {
 
     override fun configure() {
-        bind(AirlineDao::class.java).to(AirlineDaoImpl::class.java).`in`(Singleton::class.java)
-        bind(FlightDao::class.java).to(FlightDaoImpl::class.java).`in`(Singleton::class.java)
-        bind(BookingDao::class.java).to(BookingDaoJdbiImpl::class.java).`in`(Singleton::class.java)
-        bind(AirlineManager::class.java).`in`(Singleton::class.java)
-        bind(FlightSearchManager::class.java).`in`(Singleton::class.java)
-        bind(BookingManager::class.java).`in`(Singleton::class.java)
+        bind(SecretsManager::class.java).to(DummySecretsManager::class.java)
+        bind(AirlineDao::class.java).to(AirlineDaoImpl::class.java)
+        bind(FlightDao::class.java).to(FlightDaoImpl::class.java)
+        bind(BookingDao::class.java).to(BookingDaoJdbiImpl::class.java)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideDatabaseConfig(secretsManager: SecretsManager): DatabaseConfig {
+        return secretsManager.getDatabaseConfig("credair-db")
+    }
+    
+    @Provides
+    @Singleton
+    fun provideDataSource(config: DatabaseConfig): DataSource {
+        return SimpleDataSource(config.url, config.username, config.password)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideJdbi(dataSource: DataSource): Jdbi {
+        return Jdbi.create(dataSource)
+            .installPlugin(KotlinPlugin())
+            .installPlugin(KotlinSqlObjectPlugin())
     }
 }
