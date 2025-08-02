@@ -1,7 +1,7 @@
 package com.credair.flight.search.resource
 
-import com.credair.core.manager.FlightSearchManager
-import com.credair.core.manager.FlightSearchManager.*
+import com.credair.flight.search.managers.FlightSearchManager
+import com.credair.flight.search.managers.FlightSearchManager.*
 import com.google.inject.Inject
 import java.math.BigDecimal
 import java.time.LocalDateTime

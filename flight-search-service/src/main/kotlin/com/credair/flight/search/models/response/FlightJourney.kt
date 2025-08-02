@@ -1,4 +1,4 @@
-package com.credair.flight.search.models.request
+package com.credair.flight.search.models.response
 
 import java.math.BigDecimal
 import java.time.LocalTime
