@@ -1,6 +1,5 @@
 package com.credair.core.model
 
-import com.credair.common.model.BaseEntity
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.LocalDateTime
 

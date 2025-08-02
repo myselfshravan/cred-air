@@ -7,10 +7,12 @@ import com.credair.core.model.BookingStatus
 import com.credair.core.model.PaymentStatus
 import com.credair.core.model.CheckInStatus
 import com.google.inject.Inject
+import com.google.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.*
 
+@Singleton
 class BookingManager @Inject constructor(
     private val bookingDao: BookingDao,
     private val flightDao: FlightDao

@@ -3,12 +3,14 @@ package com.credair.core.dao
 import com.credair.core.dao.interfaces.AirlineDao
 import com.credair.core.model.Airline
 import com.google.inject.Inject
+import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.mapper.RowMapper
 import org.jdbi.v3.core.statement.StatementContext
 import java.sql.ResultSet
 import java.time.LocalDateTime
 
+@Singleton
 class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
 
     private val airlineMapper = RowMapper<Airline> { rs: ResultSet, _: StatementContext ->

@@ -3,8 +3,10 @@ package com.credair.core.manager
 import com.credair.core.dao.interfaces.AirlineDao
 import com.credair.core.model.Airline
 import com.google.inject.Inject
+import com.google.inject.Singleton
 import java.time.LocalDateTime
 
+@Singleton
 class AirlineManager @Inject constructor(private val airlineDao: AirlineDao) {
 
     fun createAirline(airline: Airline): Airline {

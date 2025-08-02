@@ -3,9 +3,11 @@ package com.credair.core.manager
 import com.credair.core.dao.interfaces.FlightDao
 import com.credair.core.model.Flight
 import com.google.inject.Inject
+import com.google.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
+@Singleton
 class FlightSearchManager @Inject constructor(private val flightDao: FlightDao) {
 
     data class SearchCriteria(

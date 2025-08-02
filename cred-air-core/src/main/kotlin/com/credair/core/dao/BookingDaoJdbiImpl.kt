@@ -6,12 +6,14 @@ import com.credair.core.model.BookingStatus
 import com.credair.core.model.PaymentStatus
 import com.credair.core.model.CheckInStatus
 import com.google.inject.Inject
+import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.mapper.RowMapper
 import org.jdbi.v3.core.statement.StatementContext
 import java.sql.ResultSet
 import java.time.LocalDateTime
 
+@Singleton
 class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDao {
 
     private val bookingMapper = RowMapper { rs: ResultSet, _: StatementContext ->
