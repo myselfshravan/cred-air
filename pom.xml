@@ -16,7 +16,6 @@
     </properties>
 
     <modules>
-        <module>cred-air-common</module>
         <module>cred-air-core</module>
         <module>airline-mgt-service</module>
         <module>flight-search-service</module>
