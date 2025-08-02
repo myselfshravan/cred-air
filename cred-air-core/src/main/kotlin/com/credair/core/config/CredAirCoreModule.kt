@@ -6,9 +6,6 @@ import com.credair.core.dao.FlightDaoImpl
 import com.credair.core.dao.interfaces.AirlineDao
 import com.credair.core.dao.interfaces.BookingDao
 import com.credair.core.dao.interfaces.FlightDao
-import com.credair.core.manager.AirlineManager
-import com.credair.core.manager.BookingManager
-import com.credair.core.manager.FlightSearchManager
 import com.credair.core.util.DatabaseConfig
 import com.credair.core.util.SimpleDataSource
 import com.google.inject.AbstractModule
