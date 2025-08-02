@@ -1,6 +1,6 @@
 package com.credair.core.dao.interfaces
 
-interface MaterializedViewDao {
+interface FlightsMaterializedViewDao {
     
     fun deleteJourneysContainingFlight(flightId: Long): Int
     

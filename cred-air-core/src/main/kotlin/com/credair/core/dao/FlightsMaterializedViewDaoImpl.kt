@@ -1,14 +1,14 @@
 package com.credair.core.dao
 
-import com.credair.core.dao.interfaces.MaterializedViewDao
+import com.credair.core.dao.interfaces.FlightsMaterializedViewDao
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
 
 @Singleton
-class MaterializedViewDaoImpl @Inject constructor(
+class FlightsMaterializedViewDaoImpl @Inject constructor(
     private val jdbi: Jdbi
-) : MaterializedViewDao {
+) : FlightsMaterializedViewDao {
 
     override fun deleteJourneysContainingFlight(flightId: Long): Int {
         return jdbi.withHandle<Int, Exception> { handle ->
