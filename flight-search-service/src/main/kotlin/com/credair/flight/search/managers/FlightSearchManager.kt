@@ -35,14 +35,4 @@ class FlightSearchManager @Inject constructor(
 
         return searchResults.filter { RouteValidationUtils.isEfficientRoute(it) }
     }
-
-    fun getTotalSearchResults(criteria: SearchCriteria): Int {
-        validateSearchCriteria(criteria)
-        return flightDao.countSearchResults(
-            criteria.sourceAirport,
-            criteria.destinationAirport,
-            criteria.departureDate,
-            criteria.noOfSeats
-        )
-    }
 }
