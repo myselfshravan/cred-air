@@ -1,6 +1,7 @@
 package com.credair.core.dao.interfaces
 
 import com.credair.core.model.Flight
+import com.credair.core.model.FlightJourney
 import com.credair.common.dao.BaseDao
 import java.time.LocalDateTime
 
@@ -17,4 +18,5 @@ interface FlightDao : BaseDao<Flight, Long> {
         page: Int = 0,
         pageSize: Int = 10
     ): List<com.credair.core.model.FlightSearchResult>
+    fun getFlightJourney(flightIds: List<Long>): FlightJourney?
 }

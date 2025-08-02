@@ -60,7 +60,8 @@ data class FlightDetails(
 )
 
 data class FlightStop(
-    val time: LocalTime,
+    val departsAt: Long,
+    val arrivesAt: Long,
     val airportCode: String,
     val city: String
 )

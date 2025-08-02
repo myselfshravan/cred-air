@@ -1,14 +1,16 @@
 package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.FlightDao
-import com.credair.core.model.Flight
+import com.credair.core.model.*
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.mapper.RowMapper
 import org.jdbi.v3.core.statement.StatementContext
+import java.math.BigDecimal
 import java.sql.ResultSet
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.LocalDateTime
 
 @Singleton
@@ -225,6 +227,107 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
             }
             
             query.map(flightSearchResultMapper).list()
+        }
+    }
+
+    override fun getFlightJourney(flightIds: List<Long>): FlightJourney? {
+        if (flightIds.isEmpty()) return null
+        
+        return jdbi.withHandle<FlightJourney?, Exception> { handle ->
+            val flights = handle.createQuery("""
+                SELECT f.*, a.name as airline_name, a.logo_url as airline_logo_url 
+                FROM flights f 
+                JOIN airlines a ON f.airline_id = a.id 
+                WHERE f.flight_id IN (<flightIds>) 
+                ORDER BY f.departs_at
+            """)
+                .bindList("flightIds", flightIds)
+                .map { rs, _ ->
+                    Triple(
+                        Flight(
+                            flightId = rs.getLong("flight_id"),
+                            flightNumber = rs.getString("flight_number"),
+                            srcAirportCode = rs.getString("src_airport_code"),
+                            destAirportCode = rs.getString("dest_airport_code"),
+                            departureTime = rs.getTimestamp("departs_at"),
+                            arrivalTime = rs.getTimestamp("arrives_at"),
+                            price = rs.getBigDecimal("price"),
+                            currency = rs.getString("currency") ?: "USD",
+                            totalSeats = rs.getInt("total_seats"),
+                            availableSeats = rs.getInt("available_seats"),
+                            aircraftType = rs.getString("aircraft_type"),
+                            active = rs.getBoolean("active"),
+                            createdAt = rs.getTimestamp("created_at"),
+                            updatedAt = rs.getTimestamp("updated_at"),
+                            airlineId = rs.getLong("airline_id"),
+                            sourceAirport = rs.getString("source_airport") ?: rs.getString("src_airport_code"),
+                            destinationAirport = rs.getString("destination_airport") ?: rs.getString("dest_airport_code")
+                        ),
+                        rs.getString("airline_name"),
+                        rs.getString("airline_logo_url") ?: ""
+                    )
+                }
+                .list()
+
+            if (flights.isEmpty()) return@withHandle null
+
+            val segments = flights.map { (flight, airlineName, logoUrl) ->
+                FlightSegment(
+                    airline = FlightAirline(
+                        name = airlineName,
+                        logoUrl = logoUrl
+                    ),
+                    departure = FlightStop(
+                        departsAt = flight.departureTime.toInstant().toEpochMilli(),
+                        arrivesAt = flight.departureTime.toInstant().toEpochMilli(),
+                        airportCode = flight.srcAirportCode,
+                        city = flight.sourceAirport
+                    ),
+                    arrival = FlightStop(
+                        departsAt = flight.arrivalTime.toInstant().toEpochMilli(),
+                        arrivesAt = flight.arrivalTime.toInstant().toEpochMilli(),
+                        airportCode = flight.destAirportCode,
+                        city = flight.destinationAirport
+                    ),
+                    segmentDuration = Duration.ofMinutes(flight.duration),
+                    price = FlightPrice(
+                        amount = flight.price,
+                        currency = flight.currency
+                    )
+                )
+            }
+
+            val layovers = mutableListOf<Layover>()
+            for (i in 0 until segments.size - 1) {
+                val currentSegment = segments[i]
+                val nextSegment = segments[i + 1]
+                val layoverDuration = Duration.ofMillis(
+                    nextSegment.departure.departsAt - currentSegment.arrival.arrivesAt
+                )
+                layovers.add(
+                    Layover(
+                        airportCode = currentSegment.arrival.airportCode,
+                        airportName = "${currentSegment.arrival.airportCode} Airport",
+                        duration = layoverDuration
+                    )
+                )
+            }
+
+            val totalDuration = Duration.ofMillis(
+                segments.last().arrival.arrivesAt - segments.first().departure.departsAt
+            )
+            val totalTimeInAir = segments.sumOf { it.segmentDuration.toMinutes() }.let { Duration.ofMinutes(it) }
+            val totalPrice = segments.sumOf { it.price.amount }.let {
+                FlightPrice(amount = it, currency = segments.first().price.currency)
+            }
+
+            FlightJourney(
+                totalDuration = totalDuration,
+                totalTimeInAir = totalTimeInAir,
+                price = totalPrice,
+                segments = segments,
+                layovers = layovers
+            )
         }
     }
 }

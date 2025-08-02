@@ -53,7 +53,7 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
             
             val results = flightSearchManager.searchFlights(criteria, sortCriteria, currentPage, currentPageSize)
             val nextStartIndex = (currentPage + 1) * currentPageSize
-            val hasMore = results.isNotEmpty()
+            val hasMore = results.isNotEmpty() || results.size >= currentPageSize
             
             val response = FlightSearchResponse(
                 results = results,
@@ -67,6 +67,23 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
             Response.status(Response.Status.BAD_REQUEST)
                 .entity(mapOf("error" to e.message))
                 .build()
+        } catch (e: Exception) {
+            Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(mapOf("error" to e.message))
+                .build()
+        }
+    }
+
+    @POST
+    @Path("/getDetails")
+    fun getDetails(flightIds: List<Long>): Response {
+        return try {
+            val flightJourney = flightSearchManager.getFlightJourney(flightIds)
+            if (flightJourney != null) {
+                Response.ok(flightJourney).build()
+            } else {
+                Response.status(Response.Status.NOT_FOUND).build()
+            }
         } catch (e: Exception) {
             Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity(mapOf("error" to e.message))

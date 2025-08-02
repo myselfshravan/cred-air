@@ -4,6 +4,7 @@ import com.credair.core.dao.interfaces.FlightDao
 import com.credair.flight.search.models.request.SearchCriteria
 import com.credair.flight.search.models.request.SortCriteria
 import com.credair.core.model.FlightSearchResult
+import com.credair.core.model.FlightJourney
 import com.credair.flight.search.utils.validateSearchCriteria
 import com.credair.flight.search.utils.RouteValidationUtils
 import com.google.inject.Inject
@@ -34,5 +35,9 @@ class FlightSearchManager @Inject constructor(
         )
 
         return searchResults.filter { RouteValidationUtils.isEfficientRoute(it) }
+    }
+
+    fun getFlightJourney(flightIds: List<Long>): FlightJourney? {
+        return flightDao.getFlightJourney(flightIds)
     }
 }
