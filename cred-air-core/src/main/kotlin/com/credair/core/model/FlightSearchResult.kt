@@ -6,8 +6,8 @@ import java.time.LocalTime
 data class FlightSearchResult(
     val airlineName: String,
     val airlineLogoUrl: String,
-    val departureTime: LocalTime,
-    val arrivalTime: LocalTime,
+    val departureTime: Long,
+    val arrivalTime: Long,
     val departureAirport: String,
     val arrivalAirport: String,
     val totalDurationMinutes: Int,

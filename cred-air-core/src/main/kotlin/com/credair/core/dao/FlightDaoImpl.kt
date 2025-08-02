@@ -40,8 +40,8 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         com.credair.core.model.FlightSearchResult(
             airlineName = rs.getString("airline_name") ?: "Unknown Airline",
             airlineLogoUrl = rs.getString("airline_logo_url") ?: "",
-            departureTime = rs.getTimestamp("departure_time").toLocalDateTime().toLocalTime(),
-            arrivalTime = rs.getTimestamp("arrival_time").toLocalDateTime().toLocalTime(),
+            departureTime = rs.getTimestamp("departure_time").toInstant().toEpochMilli(),
+            arrivalTime = rs.getTimestamp("arrival_time").toInstant().toEpochMilli(),
             departureAirport = rs.getString("src_airport_code"),
             arrivalAirport = rs.getString("dest_airport_code"),
             totalDurationMinutes = rs.getInt("total_time_minutes"),
