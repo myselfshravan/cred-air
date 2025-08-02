@@ -34,8 +34,12 @@
         </dependency>
         <dependency>
             <groupId>com.cred-air</groupId>
-            <artifactId>core</artifactId>
+            <artifactId>cred-air-core</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
         </dependency>
     </dependencies>
 
