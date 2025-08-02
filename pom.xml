@@ -16,10 +16,11 @@
     </properties>
 
     <modules>
-        <module>airline-management</module>
-        <module>flight-search</module>
-        <module>flight-booking</module>
-        <module>common</module>
+        <module>cred-air-common</module>
+        <module>cred-air-core</module>
+        <module>airline-mgt-service</module>
+        <module>flight-search-service</module>
+        <module>flight-booking-service</module>
     </modules>
 
     <dependencyManagement>
