@@ -2,13 +2,14 @@ package com.credair.airline
 
 import com.credair.airline.config.AirlineModule
 import com.credair.airline.resource.AirlineResource
+import com.credair.airline.resource.WebhookResource
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
 import io.dropwizard.setup.Environment
 import io.dropwizard.Application
 
-class AirlineApplication : Application<AirlineConfiguration>() {
+class AirlineManagementApplication : Application<AirlineConfiguration>() {
 
     override fun getName(): String = "airline-management-service"
 
@@ -25,14 +26,15 @@ class AirlineApplication : Application<AirlineConfiguration>() {
 
     private fun resources(): List<Class<*>> {
         return listOf(
-            AirlineResource::class.java
+            AirlineResource::class.java,
+            WebhookResource::class.java
         )
     }
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            AirlineApplication().run(*args)
+            AirlineManagementApplication().run(*args)
         }
     }
 }
