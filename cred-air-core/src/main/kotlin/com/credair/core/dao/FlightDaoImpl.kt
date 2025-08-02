@@ -197,40 +197,35 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
     ): List<FlightSegment> {
         return jdbi.withHandle<List<FlightSegment>, Exception> { handle ->
             val baseSql = """
-                SELECT mv.*, f.flight_number, f.aircraft_type, f.available_seats, a.name as airline_name, a.logo_url as airline_logo_url
-                FROM (
-                    SELECT *
-                    FROM mv_flights_0_stop
-                    WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
-                    AND departure_time > NOW()
-                    
-                    UNION ALL
-                    
-                    SELECT *
-                    FROM mv_flights_1_stop
-                    WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
-                    AND departure_time > NOW()
-                    
-                    UNION ALL
-                    
-                    SELECT *
-                    FROM mv_flights_2_stop
-                    WHERE src_airport_code = :srcAirportCode AND dest_airport_code = :destAirportCode 
-                    AND departure_time > NOW()
-                ) mv
-                JOIN flights f ON f.flight_id = mv.path[1]
-                LEFT JOIN airlines a ON a.id = f.airline_id
-                WHERE f.available_seats >= :noOfSeats
+                SELECT 
+                    departure_time,
+                    arrival_time,
+                    total_cost,
+                    total_time_minutes,
+                    stops,
+                    path,
+                    min_available_seats,
+                    airline_name,
+                    airline_logo_url,
+                    aircraft_type,
+                    flight_number,
+                    src_airport_code,
+                    dest_airport_code
+                FROM mv_flight_journeys
+                WHERE src_airport_code = :srcAirportCode 
+                  AND dest_airport_code = :destAirportCode 
+                  AND departure_time > NOW()
+                  AND min_available_seats >= :noOfSeats
             """
             
-            val dateFilter = if (departureDate != null) " AND DATE(mv.departure_time) = DATE(:departureDate)" else ""
+            val dateFilter = if (departureDate != null) " AND departure_date = DATE(:departureDate)" else ""
             
             val orderByClause = when (sortBy.lowercase()) {
-                "departure_time" -> "mv.departure_time"
-                "arrival_time" -> "mv.arrival_time"
-                "price" -> "mv.total_cost"
-                "duration" -> "(mv.arrival_time - mv.departure_time)"
-                else -> "mv.departure_time"
+                "departure_time" -> "departure_time"
+                "arrival_time" -> "arrival_time"
+                "price" -> "total_cost"
+                "duration" -> "total_time_minutes"
+                else -> "departure_time"
             }
             
             val fullSql = "$baseSql$dateFilter ORDER BY $orderByClause ${sortOrder.uppercase()} LIMIT :pageSize OFFSET :offset"
