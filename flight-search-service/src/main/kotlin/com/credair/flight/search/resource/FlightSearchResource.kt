@@ -7,7 +7,7 @@ import com.credair.flight.search.models.request.SortCriteria
 import com.credair.flight.search.models.request.SortOrder
 import com.credair.flight.search.models.response.FlightSearchResponse
 import com.google.inject.Inject
-import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.ws.rs.*
@@ -22,21 +22,22 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
     @GET
     @Path("/flights")
     fun searchFlights(
-        @QueryParam("from") sourceAirport: String,
-        @QueryParam("to") destinationAirport: String,
+        @QueryParam("from") sourceAirportCode: String,
+        @QueryParam("to") destinationAirportCode: String,
         @QueryParam("date") departureDate: String?,
         @QueryParam("minSeats") minSeats: Int?,
         @QueryParam("sortBy") sortBy: SortBy?,
         @QueryParam("sortOrder") sortOrder: SortOrder?
     ): Response {
         return try {
+            println("Searching for flights from $sourceAirportCode to $destinationAirportCode on $departureDate")
             val parsedDate = departureDate?.let { 
-                LocalDateTime.parse(it, DateTimeFormatter.ISO_LOCAL_DATE_TIME) 
+                LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay()
             }
             
             val criteria = SearchCriteria(
-                sourceAirport = sourceAirport,
-                destinationAirport = destinationAirport,
+                sourceAirport = sourceAirportCode,
+                destinationAirport = destinationAirportCode,
                 departureDate = parsedDate,
                 noOfSeats = minSeats ?: 1
             )

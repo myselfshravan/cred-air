@@ -70,12 +70,12 @@
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi3-kotlin</artifactId>
-                <version>3.41.3</version>
+                <version>3.34.0</version>
             </dependency>
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi3-kotlin-sqlobject</artifactId>
-                <version>3.41.3</version>
+                <version>3.34.0</version>
             </dependency>
             <dependency>
                 <groupId>io.dropwizard</groupId>

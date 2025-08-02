@@ -23,16 +23,12 @@ data class Flight(
     
     @JsonProperty("arrives_at")
     val arrivalTime: Timestamp,
-
-    // Legacy fields for backward compatibility
-    @JsonProperty("id")
-    val id: Long? = flightId,
     
     @JsonProperty("source_airport")
-    val sourceAirport: String = srcAirportCode,
+    val sourceAirport: String,
     
     @JsonProperty("destination_airport")
-    val destinationAirport: String = destAirportCode,
+    val destinationAirport: String,
     
     @JsonProperty("price")
     val price: BigDecimal,
@@ -48,6 +44,9 @@ data class Flight(
     
     @JsonProperty("aircraft_type")
     val aircraftType: String? = null,
+    
+    @JsonProperty("airline_id")
+    val airlineId: Long,
     
     @JsonProperty("active")
     val active: Boolean = true,

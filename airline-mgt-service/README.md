@@ -2,6 +2,23 @@
 
 This module is responsible for managing airlines and their flights.
 
+## Running the Application
+
+### IntelliJ IDEA
+1. Create a run configuration for `com.credair.airline.AirlineApplication`
+2. Add program arguments: `server src/main/resources/server-config.yml`
+3. Run the application
+
+### Command Line
+```bash
+mvn clean install
+java -cp target/classes:target/dependency/* com.credair.airline.AirlineApplication server src/main/resources/server-config.yml
+```
+
+The application will start on:
+- Main server: http://localhost:8082
+- Admin interface: http://localhost:8083
+
 ## Implementation Plan
 
 ### Airline Management

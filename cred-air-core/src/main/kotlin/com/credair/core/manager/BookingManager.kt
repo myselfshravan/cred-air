@@ -38,7 +38,7 @@ class BookingManager @Inject constructor(
             throw IllegalStateException("Flight is not available for booking")
         }
         
-        validateSeatAvailability(flight.id!!, request.numberOfSeats)
+        validateSeatAvailability(flight.flightId!!, request.numberOfSeats)
         
         val bookingReference = generateBookingReference()
         val totalPrice = calculateTotalPrice(flight.price, request.numberOfSeats)
@@ -60,7 +60,7 @@ class BookingManager @Inject constructor(
         )
         
         val savedBooking = bookingDao.save(booking)
-        updateFlightAvailableSeats(flight.id, request.numberOfSeats)
+        updateFlightAvailableSeats(flight.flightId!!, request.numberOfSeats)
         
         return savedBooking
     }
@@ -106,7 +106,7 @@ class BookingManager @Inject constructor(
         val flight = flightDao.findById(booking.flightId)
         flight?.let {
             val newAvailableSeats = it.availableSeats + booking.numberOfSeats
-            flightDao.updateAvailableSeats(it.id!!, newAvailableSeats)
+            flightDao.updateAvailableSeats(it.flightId!!, newAvailableSeats)
         }
         
         if (booking.isPaid) {

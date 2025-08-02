@@ -35,7 +35,10 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
             aircraftType = rs.getString("aircraft_type"),
             active = rs.getBoolean("active"),
             createdAt = rs.getTimestamp("created_at"),
-            updatedAt = rs.getTimestamp("updated_at")
+            updatedAt = rs.getTimestamp("updated_at"),
+            airlineId = rs.getLong("airline_id"),
+            sourceAirport = rs.getString("source_airport"),
+            destinationAirport = rs.getString("destination_airport")
         )
     }
 
@@ -84,7 +87,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
 
     override fun findAll(): List<Flight> {
         return jdbi.withHandle<List<Flight>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM flights ORDER BY departure_time")
+            handle.createQuery("SELECT * FROM flights ORDER BY departs_at")
                 .map(flightMapper)
                 .list()
         }
@@ -95,7 +98,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         val newId = jdbi.withHandle<Long, Exception> { handle ->
             handle.createUpdate("""
                 INSERT INTO flights (flight_number, src_airport_code, dest_airport_code, 
-                                   departure_time, arrival_time, price, currency, total_seats, 
+                                   departs_at, arrives_at, price, currency, total_seats, 
                                    available_seats, aircraft_type, active, created_at, updated_at) 
                 VALUES (:flightNumber, :srcAirportCode, :destAirportCode, 
                         :departureTime, :arrivalTime, :price, :currency, :totalSeats, 
@@ -128,7 +131,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                 UPDATE flights 
                 SET flight_number = :flightNumber, 
                     src_airport_code = :srcAirportCode, dest_airport_code = :destAirportCode,
-                    departure_time = :departureTime, arrival_time = :arrivalTime, 
+                    departs_at = :departureTime, arrives_at = :arrivalTime, 
                     price = :price, currency = :currency, total_seats = :totalSeats,
                     available_seats = :availableSeats, aircraft_type = :aircraftType,
                     active = :active, updated_at = :updatedAt 
@@ -221,7 +224,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                     AND departure_time > NOW()
                 ) mv
                 JOIN flights f ON f.flight_id = mv.path[1]
-                LEFT JOIN airlines a ON a.code = SUBSTRING(f.flight_number, 1, 2)
+                LEFT JOIN airlines a ON a.id = f.airline_id
                 WHERE f.available_seats >= :noOfSeats
             """
             
