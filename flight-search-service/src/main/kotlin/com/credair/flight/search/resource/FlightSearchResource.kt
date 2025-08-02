@@ -43,7 +43,7 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
             )
             
             val sortCriteria = SortCriteria(
-                sortBy = sortBy ?: SortBy.DEPARTURE_TIME,
+                sortBy = sortBy ?: SortBy.DURATION,
                 sortOrder = sortOrder ?: SortOrder.ASC
             )
             
