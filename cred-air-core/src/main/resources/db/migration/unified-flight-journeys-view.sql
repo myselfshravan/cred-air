@@ -64,6 +64,8 @@ FROM (
         AND f2.available_seats > 0
         AND f2.departs_at > f1.arrives_at + INTERVAL '45 minutes'
         AND f2.departs_at < f1.arrives_at + INTERVAL '24 hours'
+        AND f1.dest_airport_code != f1.src_airport_code  -- Prevent immediate return to source
+        AND f2.dest_airport_code != f1.src_airport_code  -- Prevent final destination being source
 
     UNION ALL
 
@@ -97,6 +99,11 @@ FROM (
         AND f2.departs_at < f1.arrives_at + INTERVAL '24 hours'
         AND f3.departs_at > f2.arrives_at + INTERVAL '45 minutes'
         AND f3.departs_at < f2.arrives_at + INTERVAL '24 hours'
+        AND f1.dest_airport_code != f1.src_airport_code  -- Prevent immediate return to source
+        AND f2.dest_airport_code != f1.src_airport_code  -- Prevent return to source at second stop
+        AND f2.dest_airport_code != f1.dest_airport_code  -- Prevent revisiting first layover
+        AND f3.dest_airport_code != f1.src_airport_code  -- Prevent final destination being source
+        AND f3.dest_airport_code != f1.dest_airport_code  -- Prevent final destination being first layover
 ) journey_data
 WITH DATA;
 
