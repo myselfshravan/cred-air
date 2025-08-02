@@ -1,7 +1,6 @@
 package com.credair.core.dao.interfaces
 
 import com.credair.core.model.Flight
-import com.credair.core.model.FlightSegment
 import com.credair.common.dao.BaseDao
 import java.time.LocalDateTime
 
@@ -17,5 +16,5 @@ interface FlightDao : BaseDao<Flight, Long> {
         sortOrder: String = "ASC",
         page: Int = 0,
         pageSize: Int = 10
-    ): List<FlightSegment>
+    ): List<com.credair.core.model.FlightSearchResult>
 }

@@ -2,10 +2,6 @@ package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.FlightDao
 import com.credair.core.model.Flight
-import com.credair.core.model.FlightAirline
-import com.credair.core.model.FlightPrice
-import com.credair.core.model.FlightSegment
-import com.credair.core.model.FlightStop
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
@@ -13,7 +9,6 @@ import org.jdbi.v3.core.mapper.RowMapper
 import org.jdbi.v3.core.statement.StatementContext
 import java.sql.ResultSet
 import java.sql.Timestamp
-import java.time.Duration
 import java.time.LocalDateTime
 
 @Singleton
@@ -41,31 +36,19 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         )
     }
 
-    private val flightSegmentMapper = RowMapper { rs: ResultSet, _: StatementContext ->
-        FlightSegment(
-            airline = FlightAirline(
-                name = rs.getString("airline_name") ?: "Unknown Airline",
-                logoUrl = rs.getString("airline_logo_url") ?: ""
-            ),
-            departure = FlightStop(
-                time = rs.getTimestamp("departure_time").toLocalDateTime().toLocalTime(),
-                airportCode = rs.getString("src_airport_code"),
-                city = rs.getString("src_airport_code") // Default to airport code, could be enhanced
-            ),
-            arrival = FlightStop(
-                time = rs.getTimestamp("arrival_time").toLocalDateTime().toLocalTime(),
-                airportCode = rs.getString("dest_airport_code"),
-                city = rs.getString("dest_airport_code") // Default to airport code, could be enhanced
-            ),
-            segmentDuration = Duration.between(
-                rs.getTimestamp("departure_time").toLocalDateTime(),
-                rs.getTimestamp("arrival_time").toLocalDateTime()
-            ),
-            price = FlightPrice(
-                amount = rs.getBigDecimal("total_cost"),
-                currency = "USD",
-                perPerson = true
-            )
+    private val flightSearchResultMapper = RowMapper { rs: ResultSet, _: StatementContext ->
+        com.credair.core.model.FlightSearchResult(
+            airlineName = rs.getString("airline_name") ?: "Unknown Airline",
+            airlineLogoUrl = rs.getString("airline_logo_url") ?: "",
+            departureTime = rs.getTimestamp("departure_time").toLocalDateTime().toLocalTime(),
+            arrivalTime = rs.getTimestamp("arrival_time").toLocalDateTime().toLocalTime(),
+            departureAirport = rs.getString("src_airport_code"),
+            arrivalAirport = rs.getString("dest_airport_code"),
+            totalDurationMinutes = rs.getInt("total_time_minutes"),
+            stopCount = rs.getInt("stops"),
+            stopAirports = rs.getString("path")?.split(",")?.dropLast(1) ?: emptyList(),
+            priceAmount = rs.getBigDecimal("total_cost"),
+            priceCurrency = "USD"
         )
     }
 
@@ -193,8 +176,8 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         sortOrder: String,
         page: Int,
         pageSize: Int
-    ): List<FlightSegment> {
-        return jdbi.withHandle<List<FlightSegment>, Exception> { handle ->
+    ): List<com.credair.core.model.FlightSearchResult> {
+        return jdbi.withHandle<List<com.credair.core.model.FlightSearchResult>, Exception> { handle ->
             val baseSql = """
                 SELECT 
                     departure_time,
@@ -240,7 +223,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                 query.bind("departureDate", Timestamp.valueOf(departureDate))
             }
             
-            query.map(flightSegmentMapper).list()
+            query.map(flightSearchResultMapper).list()
         }
     }
 }
