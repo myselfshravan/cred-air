@@ -19,6 +19,9 @@ data class Airline(
     @JsonProperty("description")
     val description: String? = null,
 
+    @JsonProperty("logo_url")
+    val logoUrl: String? = null,
+
     @JsonProperty("website")
     val website: String? = null,
 
