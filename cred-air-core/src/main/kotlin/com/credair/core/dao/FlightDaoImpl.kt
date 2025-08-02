@@ -1,14 +1,11 @@
 package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.FlightDao
-import com.credair.core.events.FlightEventPublisher
 import com.credair.core.model.Flight
 import com.credair.core.model.FlightAirline
-import com.credair.core.model.FlightDetails
 import com.credair.core.model.FlightPrice
 import com.credair.core.model.FlightSegment
 import com.credair.core.model.FlightStop
-import com.credair.core.util.FlightChangeDetector
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
@@ -20,10 +17,7 @@ import java.time.Duration
 import java.time.LocalDateTime
 
 @Singleton
-class FlightDaoImpl @Inject constructor(
-    private val jdbi: Jdbi,
-    private val flightEventPublisher: FlightEventPublisher
-) : FlightDao {
+class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
 
     private val flightMapper = RowMapper { rs: ResultSet, _: StatementContext ->
         Flight(
@@ -125,15 +119,6 @@ class FlightDaoImpl @Inject constructor(
     }
 
     override fun update(entity: Flight): Flight {
-        require(entity.flightId != null) { "Flight ID cannot be null for update operation" }
-        
-        // Fetch existing flight for change detection
-        val oldFlight = findById(entity.flightId!!)
-        
-        // Analyze changes
-        val changeAnalysis = FlightChangeDetector.analyzeChanges(oldFlight, entity)
-        
-        // Update the database
         val now = Timestamp(System.currentTimeMillis())
         jdbi.withHandle<Unit, Exception> { handle ->
             handle.createUpdate("""
@@ -161,13 +146,6 @@ class FlightDaoImpl @Inject constructor(
                 .bind("updatedAt", now)
                 .execute()
         }
-        
-        // Publish event for materialized view updates (async)
-        val event = FlightChangeDetector.createEvent(changeAnalysis)
-        if (event != null) {
-            flightEventPublisher.publishEvent(event)
-        }
-        
         return entity.copy(updatedAt = now)
     }
 
