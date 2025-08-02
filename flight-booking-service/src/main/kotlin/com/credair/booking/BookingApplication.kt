@@ -17,7 +17,7 @@ class BookingApplication : Application<BookingConfiguration>() {
 
     override fun run(configuration: BookingConfiguration, environment: Environment) {
         val injector = Guice.createInjector(BookingModule())
-        resources.forEach { resource ->
+        resources().forEach { resource ->
             environment.jersey()
                 .register(injector.getInstance(resource))
         }
