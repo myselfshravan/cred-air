@@ -12,7 +12,6 @@ data class FlightJourney(
     val totalDuration: Duration,
     val totalTimeInAir: Duration,
     val price: FlightPrice,
-    val seatsLeft: Int,
     val segments: List<FlightSegment>,
     val layovers: List<Layover>
 ) {
@@ -32,12 +31,10 @@ data class FlightJourney(
  */
 data class FlightSegment(
     val airline: FlightAirline,
-    val flightDetails: FlightDetails,
     val departure: FlightStop,
     val arrival: FlightStop,
     val segmentDuration: Duration,
     val price: FlightPrice,
-    val availableSeats: Int
 )
 
 /**

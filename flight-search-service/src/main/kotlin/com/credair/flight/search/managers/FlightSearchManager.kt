@@ -5,6 +5,8 @@ import com.credair.core.model.FlightJourney
 import com.credair.core.model.FlightSegment
 import com.credair.flight.search.models.request.SearchCriteria
 import com.credair.flight.search.models.request.SortCriteria
+import com.credair.flight.search.models.response.FlightSearchResult
+import com.credair.flight.search.models.response.toSearchResult
 import com.credair.flight.search.utils.calculateLayovers
 import com.credair.flight.search.utils.validateSearchCriteria
 import com.google.inject.Inject
@@ -16,12 +18,12 @@ class FlightSearchManager @Inject constructor(
     private val flightDao: FlightDao
 ) {
 
-    fun searchFlightJourneys(
+    fun searchFlights(
         criteria: SearchCriteria,
         sortCriteria: SortCriteria = SortCriteria(),
         page: Int = 0,
         pageSize: Int = 10
-    ): List<FlightJourney> {
+    ): List<FlightSearchResult> {
         validateSearchCriteria(criteria)
 
         // Use optimized search that returns FlightSegments directly
@@ -36,8 +38,8 @@ class FlightSearchManager @Inject constructor(
             pageSize
         )
 
-        // Convert FlightSegments to FlightJourneys
-        return flightSegments.map { segment -> convertFlightSegmentToJourney(segment) }
+        // Convert FlightSegments to FlightSearchResults
+        return flightSegments.map { segment -> convertFlightSegmentToJourney(segment).toSearchResult() }
     }
 
     private fun convertFlightSegmentToJourney(segment: FlightSegment): FlightJourney {
@@ -53,7 +55,6 @@ class FlightSearchManager @Inject constructor(
             totalDuration = totalDuration,
             totalTimeInAir = totalTimeInAir,
             price = segment.price,
-            seatsLeft = segment.availableSeats,
             segments = segments,
             layovers = layovers
         )

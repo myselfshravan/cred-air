@@ -48,10 +48,6 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                 name = rs.getString("airline_name") ?: "Unknown Airline",
                 logoUrl = rs.getString("airline_logo_url") ?: ""
             ),
-            flightDetails = FlightDetails(
-                flightNumber = rs.getString("flight_number"),
-                aircraftType = rs.getString("aircraft_type") ?: "Unknown"
-            ),
             departure = FlightStop(
                 time = rs.getTimestamp("departure_time").toLocalDateTime().toLocalTime(),
                 airportCode = rs.getString("src_airport_code"),
@@ -70,8 +66,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                 amount = rs.getBigDecimal("total_cost"),
                 currency = "USD",
                 perPerson = true
-            ),
-            availableSeats = rs.getInt("available_seats")
+            )
         )
     }
 

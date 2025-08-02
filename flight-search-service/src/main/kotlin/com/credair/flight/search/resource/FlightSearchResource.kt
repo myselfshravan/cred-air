@@ -47,8 +47,8 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
                 sortOrder = sortOrder ?: SortOrder.ASC
             )
             
-            val journeys = flightSearchManager.searchFlightJourneys(criteria, sortCriteria)
-            val response = FlightSearchResponse(journeys = journeys)
+            val results = flightSearchManager.searchFlights(criteria, sortCriteria)
+            val response = FlightSearchResponse(results = results)
             Response.ok(response).build()
             
         } catch (e: IllegalArgumentException) {
