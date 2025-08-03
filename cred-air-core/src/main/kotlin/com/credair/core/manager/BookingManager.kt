@@ -2,67 +2,60 @@ package com.credair.core.manager
 
 import com.credair.core.dao.interfaces.BookingDao
 import com.credair.core.dao.interfaces.FlightDao
+import com.credair.core.integration.airline.AirlineReservationService
+import com.credair.core.integration.airline.PassengerInfo
+import com.credair.core.integration.airline.ReservationRequest
 import com.credair.core.model.Booking
+import com.credair.core.model.BookingRequestPayload
+import com.credair.core.model.BookingResult
 import com.credair.core.model.BookingStatus
+import com.credair.core.model.Flight
+import com.credair.core.model.FlightBooking
+import com.credair.core.model.FlightPricePayload
+import com.credair.core.model.PassengerData
 import com.credair.core.model.PaymentStatus
-import com.credair.core.model.CheckInStatus
+import com.credair.core.payment.PaymentProvider
+import com.credair.core.repository.BookingRepository
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import java.math.BigDecimal
-import java.time.LocalDateTime
-import java.util.*
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Singleton
 class BookingManager @Inject constructor(
     private val bookingDao: BookingDao,
-    private val flightDao: FlightDao
+    private val flightDao: FlightDao,
+    private val bookingRepository: BookingRepository,
+    private val paymentProvider: PaymentProvider,
+    private val airlineReservationService: AirlineReservationService
 ) {
 
-    data class BookingRequest(
-        val flightId: Long,
-        val passengerName: String,
-        val passengerEmail: String,
-        val passengerPhone: String? = null,
-        val numberOfSeats: Int = 1,
-        val specialRequests: String? = null,
-        val paymentMethod: String? = null
-    )
-
-    fun createBooking(request: BookingRequest): Booking {
-        validateBookingRequest(request)
+    suspend fun createBookingFromPayload(payload: BookingRequestPayload): BookingResult {
+        validateBookingPayload(payload)
+        validateFlightsAvailability(payload)
         
-        val flight = flightDao.findById(request.flightId)
-            ?: throw IllegalArgumentException("Flight with id ${request.flightId} not found")
+        // 1. Create all booking data in a single transaction
+        val bookingData = bookingRepository.createBookingInTransaction(payload)
         
-        if (!flight.isAvailable) {
-            throw IllegalStateException("Flight is not available for booking")
-        }
+        // 2. Process airline reservations (external service calls)
+        val reservations = processAirlineReservations(bookingData.flightBookings, payload.passengerData)
         
-        validateSeatAvailability(flight.flightId!!, request.numberOfSeats)
+        // 3. Create payment session
+        val paymentIntent = createPaymentSession(bookingData.mainBooking, payload.totalPrice)
         
-        val bookingReference = generateBookingReference()
-        val totalPrice = calculateTotalPrice(flight.price, request.numberOfSeats)
-        
-        val booking = Booking(
-            bookingReference = bookingReference,
-            flightId = request.flightId,
-            passengerName = request.passengerName,
-            passengerEmail = request.passengerEmail,
-            passengerPhone = request.passengerPhone,
-            numberOfSeats = request.numberOfSeats,
-            totalPrice = totalPrice,
-            currency = flight.currency,
-            specialRequests = request.specialRequests,
-            paymentMethod = request.paymentMethod,
-            bookingDate = LocalDateTime.now(),
-            createdAt = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now()
+        // 4. Update main booking with payment intent ID
+        val updatedMainBooking = bookingData.mainBooking.copy(
+            paymentTransactionId = paymentIntent.id
         )
+        bookingDao.update(updatedMainBooking)
         
-        val savedBooking = bookingDao.save(booking)
-        updateFlightAvailableSeats(flight.flightId!!, request.numberOfSeats)
-        
-        return savedBooking
+        return BookingResult(
+            updatedMainBooking,
+            bookingData.flightBookings,
+            bookingData.passengers,
+            paymentIntent
+        )
     }
 
     fun getBookingById(id: Long): Booking {
@@ -70,49 +63,20 @@ class BookingManager @Inject constructor(
             ?: throw IllegalArgumentException("Booking with id $id not found")
     }
 
-    fun getBookingByReference(bookingReference: String): Booking {
-        return bookingDao.findByBookingReference(bookingReference)
-            ?: throw IllegalArgumentException("Booking with reference $bookingReference not found")
-    }
-
-    fun getBookingsByPassengerEmail(passengerEmail: String): List<Booking> {
-        return bookingDao.findByPassengerEmail(passengerEmail)
-    }
-
-    fun getBookingsByFlightId(flightId: Long): List<Booking> {
-        return bookingDao.findByFlightId(flightId)
-    }
-
     fun confirmBooking(bookingId: Long): Booking {
         val booking = getBookingById(bookingId)
         
-        if (booking.bookingStatus != BookingStatus.PENDING) {
-            throw IllegalStateException("Only pending bookings can be confirmed")
+        if (booking.bookingStatus !in listOf(BookingStatus.PENDING, BookingStatus.SOFT_RESERVED)) {
+            throw IllegalStateException("Only pending or soft reserved bookings can be confirmed")
         }
         
         bookingDao.updateBookingStatus(bookingId, BookingStatus.CONFIRMED)
         return getBookingById(bookingId)
     }
 
-    fun cancelBooking(bookingId: Long, reason: String? = null): Booking {
+    fun cancelBooking(bookingId: Long): Booking {
         val booking = getBookingById(bookingId)
-        
-        if (!booking.canBeCancelled) {
-            throw IllegalStateException("Booking cannot be cancelled")
-        }
-        
         bookingDao.updateBookingStatus(bookingId, BookingStatus.CANCELLED)
-        
-        val flight = flightDao.findById(booking.flightId)
-        flight?.let {
-            val newAvailableSeats = it.availableSeats + booking.numberOfSeats
-            flightDao.updateAvailableSeats(it.flightId!!, newAvailableSeats)
-        }
-        
-        if (booking.isPaid) {
-            processRefund(bookingId)
-        }
-        
         return getBookingById(bookingId)
     }
 
@@ -142,66 +106,7 @@ class BookingManager @Inject constructor(
         return getBookingById(bookingId)
     }
 
-    fun checkInPassenger(bookingId: Long, seatNumber: String? = null): Booking {
-        val booking = getBookingById(bookingId)
-        
-        if (booking.bookingStatus != BookingStatus.CONFIRMED) {
-            throw IllegalStateException("Only confirmed bookings can be checked in")
-        }
-        
-        if (!booking.isPaid) {
-            throw IllegalStateException("Payment must be completed before check-in")
-        }
-        
-        val flight = flightDao.findById(booking.flightId)
-        flight?.let {
-            if (it.departureTime.toLocalDateTime().isBefore(LocalDateTime.now().plusHours(2))) {
-                throw IllegalStateException("Check-in window has closed")
-            }
-        }
-        
-        bookingDao.updateCheckInStatus(bookingId, CheckInStatus.CHECKED_IN)
-        
-        seatNumber?.let {
-            val updatedBooking = booking.copy(
-                seatNumber = it,
-                updatedAt = LocalDateTime.now()
-            )
-            bookingDao.update(updatedBooking)
-        }
-        
-        return getBookingById(bookingId)
-    }
-
-    fun getBookingStatistics(flightId: Long): Map<String, Any> {
-        val totalBookings = bookingDao.countBookingsByFlightId(flightId)
-        val totalSeatsBooked = bookingDao.getTotalSeatsBookedForFlight(flightId)
-        
-        val flight = flightDao.findById(flightId)
-        val occupancyRate = flight?.let {
-            (totalSeatsBooked.toDouble() / it.totalSeats.toDouble()) * 100
-        } ?: 0.0
-        
-        return mapOf(
-            "totalBookings" to totalBookings,
-            "totalSeatsBooked" to totalSeatsBooked,
-            "occupancyRate" to String.format("%.2f%%", occupancyRate),
-            "availableSeats" to (flight?.availableSeats ?: 0)
-        )
-    }
-
-    private fun validateBookingRequest(request: BookingRequest) {
-        require(request.passengerName.isNotBlank()) { "Passenger name cannot be blank" }
-        require(request.passengerEmail.isNotBlank()) { "Passenger email cannot be blank" }
-        require(request.passengerEmail.contains("@")) { "Invalid email format" }
-        require(request.numberOfSeats > 0) { "Number of seats must be greater than 0" }
-        require(request.numberOfSeats <= 9) { "Maximum 9 seats per booking" }
-    }
-
-    private fun validateSeatAvailability(flightId: Long, requestedSeats: Int) {
-        val flight = flightDao.findById(flightId)
-            ?: throw IllegalArgumentException("Flight not found")
-        
+    private fun validateSeatAvailability(flight: Flight, requestedSeats: Int) {
         if (flight.availableSeats < requestedSeats) {
             throw IllegalStateException(
                 "Not enough seats available. Requested: $requestedSeats, Available: ${flight.availableSeats}"
@@ -209,30 +114,142 @@ class BookingManager @Inject constructor(
         }
     }
 
-    private fun generateBookingReference(): String {
-        val prefix = "CR"
-        val timestamp = System.currentTimeMillis().toString().takeLast(6)
-        val random = Random().nextInt(9999).toString().padStart(4, '0')
-        return "$prefix$timestamp$random"
-    }
-
-    private fun calculateTotalPrice(unitPrice: BigDecimal, numberOfSeats: Int): BigDecimal {
-        return unitPrice.multiply(BigDecimal(numberOfSeats))
-    }
-
-    private fun updateFlightAvailableSeats(flightId: Long, seatsBooked: Int) {
-        val flight = flightDao.findById(flightId)
-        flight?.let {
-            val newAvailableSeats = it.availableSeats - seatsBooked
-            flightDao.updateAvailableSeats(flightId, newAvailableSeats)
-        }
-    }
-
     private fun processPaymentExternal(booking: Booking, paymentMethod: String): Boolean {
         return true
     }
 
-    private fun processRefund(bookingId: Long) {
-        bookingDao.updatePaymentStatus(bookingId, PaymentStatus.REFUNDED)
+    private fun validateFlightsAvailability(payload: BookingRequestPayload) {
+        payload.flightIds.forEach { flightId ->
+            val flightIdLong = flightId.toLongOrNull()
+                ?: throw IllegalArgumentException("Invalid flight ID: $flightId")
+                
+            val flight = flightDao.findById(flightIdLong)
+                ?: throw IllegalArgumentException("Flight with id $flightId not found")
+            
+            if (!flight.isAvailable) {
+                throw IllegalStateException("Flight $flightId is not available for booking")
+            }
+            
+            validateSeatAvailability(flight, payload.passengerCount)
+            
+            val flightPrice = payload.flightPrices.find { it.flightId == flightId }
+                ?: throw IllegalArgumentException("Price not found for flight $flightId")
+            
+            validateFlightPrice(flight, flightPrice)
+        }
+    }
+
+    private fun validateBookingPayload(payload: BookingRequestPayload) {
+        require(payload.flightIds.isNotEmpty()) { "At least one flight ID must be provided" }
+        require(payload.passengerData.isNotEmpty()) { "At least one passenger must be provided" }
+        require(payload.passengerCount > 0) { "Passenger count must be greater than 0" }
+        require(payload.passengerCount <= 9) { "Maximum 9 passengers per booking" }
+        require(payload.totalPrice > BigDecimal.ZERO) { "Total price must be greater than 0" }
+        
+        payload.passengerData.forEach { passenger ->
+            validatePassengerData(passenger)
+        }
+        
+        payload.flightPrices.forEach { flightPrice ->
+            require(flightPrice.price > BigDecimal.ZERO) { "Flight price must be greater than 0" }
+            require(flightPrice.currency.isNotBlank()) { "Currency cannot be blank" }
+        }
+        
+        val providedFlightIds = payload.flightPrices.map { it.flightId }.toSet()
+        val requestedFlightIds = payload.flightIds.toSet()
+        require(providedFlightIds == requestedFlightIds) { "Flight prices must be provided for all requested flights" }
+        
+        val expectedTotal = payload.flightPrices.sumOf { it.price.multiply(BigDecimal(payload.passengerCount)) }
+        require(payload.totalPrice.compareTo(expectedTotal) == 0) { 
+            "Total price ${payload.totalPrice} does not match sum of flight prices $expectedTotal" 
+        }
+    }
+
+    private fun validatePassengerData(passenger: PassengerData) {
+        require(passenger.firstName.isNotBlank()) { "Passenger first name cannot be blank" }
+        require(passenger.lastName.isNotBlank()) { "Passenger last name cannot be blank" }
+        require(passenger.email.isNotBlank()) { "Passenger email cannot be blank" }
+        require(passenger.email.contains("@")) { "Invalid email format for passenger ${passenger.firstName} ${passenger.lastName}" }
+        require(passenger.phone.isNotBlank()) { "Passenger phone cannot be blank" }
+        require(passenger.dateOfBirth.isNotBlank()) { "Passenger date of birth cannot be blank" }
+        
+        try {
+            val birthDate = LocalDate.parse(passenger.dateOfBirth, DateTimeFormatter.ISO_LOCAL_DATE)
+            val age = LocalDate.now().year - birthDate.year
+            require(age >= 0 && age <= 120) { "Invalid age for passenger ${passenger.firstName} ${passenger.lastName}" }
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid date format for passenger ${passenger.firstName} ${passenger.lastName}")
+        }
+    }
+
+    private fun validateFlightPrice(flight: Flight, flightPrice: FlightPricePayload) {
+        require(flight.currency == flightPrice.currency) { 
+            "Currency mismatch: flight currency ${flight.currency}, provided currency ${flightPrice.currency}" 
+        }
+        
+        val priceDifference = flight.price.subtract(flightPrice.price).abs()
+        val tolerance = flight.price.multiply(BigDecimal("0.05"))
+        
+        require(priceDifference <= tolerance) {
+            "Price validation failed: flight price ${flight.price}, provided price ${flightPrice.price}" 
+        }
+    }
+
+
+    fun getBookingConfirmation(bookingId: Long): String {
+        return "Booking confirmation details for booking ID: $bookingId"
+    }
+
+    private suspend fun processAirlineReservations(
+        flightBookings: List<FlightBooking>,
+        passengerData: List<PassengerData>
+    ): Map<String, String> {
+        val reservationResults = mutableMapOf<String, String>()
+        
+        flightBookings.forEach { flightBooking ->
+            val passengers = passengerData.map { passenger ->
+                PassengerInfo(
+                    firstName = passenger.firstName,
+                    lastName = passenger.lastName,
+                    email = passenger.email,
+                    phone = passenger.phone,
+                    dateOfBirth = passenger.dateOfBirth
+                )
+            }
+            
+            val flight = flightDao.findById(flightBooking.flightId.toLong())
+                ?: throw IllegalArgumentException("Flight with id ${flightBooking.flightId} not found")
+            
+            val reservationRequest = ReservationRequest(
+                booking = Booking(
+                    bookingReference = "TEMP-${System.currentTimeMillis()}",
+                    totalPrice = flightBooking.totalFlightPrice,
+                    currency = flightBooking.currency,
+                    passengerCount = flightBooking.passengerCount,
+                    bookingStatus = BookingStatus.PENDING,
+                    paymentStatus = PaymentStatus.PENDING
+                ),
+                flight = flight,
+                passengers = passengers
+            )
+            
+            val reservationResponse = airlineReservationService.softReserve(reservationRequest)
+            
+            if (!reservationResponse.success) {
+                throw IllegalStateException("Failed to reserve flight ${flightBooking.flightId}: ${reservationResponse.error}")
+            }
+            
+            reservationResults[flightBooking.flightId] = reservationResponse.airlineConfirmationCode ?: ""
+        }
+        
+        return reservationResults
+    }
+    
+    private fun createPaymentSession(
+        mainBooking: Booking,
+        totalPrice: BigDecimal
+    ): PaymentProvider.PaymentIntent {
+        val bookingForPayment = mainBooking.copy(totalPrice = totalPrice)
+        return paymentProvider.createPaymentIntent(bookingForPayment)
     }
 }
