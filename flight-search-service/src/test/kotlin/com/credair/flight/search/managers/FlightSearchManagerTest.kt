@@ -3,10 +3,13 @@ package com.credair.flight.search.managers
 import com.credair.core.dao.interfaces.FlightDao
 import com.credair.core.model.FlightJourney
 import com.credair.core.model.FlightSearchResult
+import com.credair.core.model.*
+import java.time.Duration
 import com.credair.flight.search.models.request.SearchCriteria
 import com.credair.flight.search.models.request.SortBy
 import com.credair.flight.search.models.request.SortCriteria
 import com.credair.flight.search.models.request.SortOrder
+import com.github.benmanes.caffeine.cache.Cache
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -19,12 +22,14 @@ import kotlin.test.assertTrue
 class FlightSearchManagerTest {
 
     private lateinit var flightDao: FlightDao
+    private lateinit var searchCache: Cache<String, List<FlightSearchResult>>
     private lateinit var flightSearchManager: FlightSearchManager
 
     @BeforeEach
     fun setUp() {
         flightDao = mock()
-        flightSearchManager = FlightSearchManager(flightDao)
+        searchCache = mock()
+        flightSearchManager = FlightSearchManager(flightDao, searchCache)
     }
 
     // Validation Tests
@@ -108,6 +113,7 @@ class FlightSearchManagerTest {
             createValidFlightSearchResult("DEL", "BOM", listOf("MAA"))
         )
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 1, "duration", "ASC", 0, 10
         )).thenReturn(mockResults)
@@ -116,6 +122,21 @@ class FlightSearchManagerTest {
 
         assertEquals(2, result.size) // Circular route should be filtered out
         verify(flightDao).searchFlightsOptimized("DEL", "BOM", null, 1, "duration", "ASC", 0, 10)
+        verify(searchCache).put(any(), any())
+    }
+
+    @Test
+    fun `searchFlights should return cached results when available`() {
+        val criteria = createValidSearchCriteria()
+        val cachedResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
+
+        whenever(searchCache.getIfPresent(any())).thenReturn(cachedResults)
+
+        val result = flightSearchManager.searchFlights(criteria)
+
+        assertEquals(1, result.size)
+        verify(searchCache).getIfPresent(any())
+        verifyNoInteractions(flightDao)
     }
 
     @Test
@@ -124,6 +145,7 @@ class FlightSearchManagerTest {
         val sortCriteria = SortCriteria(SortBy.PRICE, SortOrder.DESC)
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 1, "price", "DESC", 0, 10
         )).thenReturn(mockResults)
@@ -139,6 +161,7 @@ class FlightSearchManagerTest {
         val criteria = createValidSearchCriteria()
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 1, "duration", "ASC", 2, 20
         )).thenReturn(mockResults)
@@ -155,6 +178,7 @@ class FlightSearchManagerTest {
         val criteria = createValidSearchCriteria().copy(departureDate = departureDate)
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", departureDate, 1, "duration", "ASC", 0, 10
         )).thenReturn(mockResults)
@@ -170,6 +194,7 @@ class FlightSearchManagerTest {
         val criteria = createValidSearchCriteria().copy(noOfSeats = 3)
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 3, "duration", "ASC", 0, 10
         )).thenReturn(mockResults)
@@ -187,6 +212,7 @@ class FlightSearchManagerTest {
         val sortCriteria = SortCriteria(SortBy.DEPARTURE_TIME, SortOrder.ASC)
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 1, "departure_time", "ASC", 0, 10
         )).thenReturn(mockResults)
@@ -202,6 +228,7 @@ class FlightSearchManagerTest {
         val sortCriteria = SortCriteria(SortBy.ARRIVAL_TIME, SortOrder.DESC)
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 1, "arrival_time", "DESC", 0, 10
         )).thenReturn(mockResults)
@@ -217,6 +244,7 @@ class FlightSearchManagerTest {
         val sortCriteria = SortCriteria(SortBy.PRICE, SortOrder.ASC)
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 1, "price", "ASC", 0, 10
         )).thenReturn(mockResults)
@@ -232,6 +260,7 @@ class FlightSearchManagerTest {
         val sortCriteria = SortCriteria(SortBy.DURATION, SortOrder.DESC)
         val mockResults = listOf(createValidFlightSearchResult("DEL", "BOM"))
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", null, 1, "duration", "DESC", 0, 10
         )).thenReturn(mockResults)
@@ -251,7 +280,8 @@ class FlightSearchManagerTest {
             createValidFlightSearchResult("DEL", "BOM", listOf("CCU")) // Valid - one stop
         )
 
-        whenever(flightDao.searchFlightsOptimized(any(), any(), any(), any(), any(), any(), any(), any()))
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
+        whenever(flightDao.searchFlightsOptimized("DEL", "BOM", null, 1, "duration", "ASC", 0, 10))
             .thenReturn(mockResults)
 
         val result = flightSearchManager.searchFlights(criteria)
@@ -269,7 +299,8 @@ class FlightSearchManagerTest {
             createValidFlightSearchResult("DEL", "BOM", listOf("MAA")) // Valid one-stop
         )
 
-        whenever(flightDao.searchFlightsOptimized(any(), any(), any(), any(), any(), any(), any(), any()))
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
+        whenever(flightDao.searchFlightsOptimized("DEL", "BOM", null, 1, "duration", "ASC", 0, 10))
             .thenReturn(mockResults)
 
         val result = flightSearchManager.searchFlights(criteria)
@@ -281,6 +312,7 @@ class FlightSearchManagerTest {
     fun `searchFlights should return empty list when no results from dao`() {
         val criteria = createValidSearchCriteria()
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(any(), any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(emptyList())
 
@@ -293,13 +325,13 @@ class FlightSearchManagerTest {
     @Test
     fun `getFlightJourney should return journey for valid flight IDs`() {
         val flightIds = listOf(1L, 2L)
-        val mockJourney = mock<FlightJourney>()
+        val validJourney = createValidFlightJourney()
 
-        whenever(flightDao.getFlightJourney(flightIds)).thenReturn(mockJourney)
+        whenever(flightDao.getFlightJourney(flightIds)).thenReturn(validJourney)
 
         val result = flightSearchManager.getFlightJourney(flightIds)
 
-        assertEquals(mockJourney, result)
+        assertEquals(validJourney, result)
         verify(flightDao).getFlightJourney(flightIds)
     }
 
@@ -330,13 +362,13 @@ class FlightSearchManagerTest {
     @Test
     fun `getFlightJourney should handle single flight ID`() {
         val flightIds = listOf(1L)
-        val mockJourney = mock<FlightJourney>()
+        val validJourney = createValidFlightJourney()
 
-        whenever(flightDao.getFlightJourney(flightIds)).thenReturn(mockJourney)
+        whenever(flightDao.getFlightJourney(flightIds)).thenReturn(validJourney)
 
         val result = flightSearchManager.getFlightJourney(flightIds)
 
-        assertEquals(mockJourney, result)
+        assertEquals(validJourney, result)
         verify(flightDao).getFlightJourney(flightIds)
     }
 
@@ -345,7 +377,8 @@ class FlightSearchManagerTest {
     fun `searchFlights should propagate dao exceptions`() {
         val criteria = createValidSearchCriteria()
 
-        whenever(flightDao.searchFlightsOptimized(any(), any(), any(), any(), any(), any(), any(), any()))
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
+        whenever(flightDao.searchFlightsOptimized("DEL", "BOM", null, 1, "duration", "ASC", 0, 10))
             .thenThrow(RuntimeException("Database error"))
 
         val exception = assertThrows<RuntimeException> {
@@ -382,6 +415,7 @@ class FlightSearchManagerTest {
             createValidFlightSearchResult("DEL", "BOM", listOf("MAA"))
         )
 
+        whenever(searchCache.getIfPresent(any())).thenReturn(null)
         whenever(flightDao.searchFlightsOptimized(
             "DEL", "BOM", departureDate, 4, "price", "ASC", 1, 15
         )).thenReturn(mockResults)
@@ -446,5 +480,22 @@ class FlightSearchManagerTest {
         priceAmount = BigDecimal("250.00"),
         priceCurrency = "USD",
         flightIds = listOf(3L)
+    )
+
+    private fun createValidFlightJourney() = FlightJourney(
+        totalDuration = Duration.ofHours(2),
+        totalTimeInAir = Duration.ofHours(2),
+        price = FlightPrice(BigDecimal("100.00"), "USD"),
+        segments = listOf(
+            FlightSegment(
+                airline = FlightAirline("Test Airline", "https://example.com/logo.png"),
+                departure = FlightStop(System.currentTimeMillis(), System.currentTimeMillis() + 3600000, "DEL", "Delhi"),
+                arrival = FlightStop(System.currentTimeMillis() + 7200000, System.currentTimeMillis() + 7200000, "BOM", "Mumbai"),
+                segmentDuration = Duration.ofHours(2),
+                price = FlightPrice(BigDecimal("100.00"), "USD"),
+                id = 1L
+            )
+        ),
+        layovers = emptyList()
     )
 }

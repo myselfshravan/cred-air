@@ -20,11 +20,12 @@ class AirlineIntegrationManagerTest {
 
     @BeforeEach
     fun setUp() {
-        indigoService = mock()
-        airIndiaService = mock()
-        spiceJetService = mock()
-        vistaraService = mock()
-        goAirService = mock()
+        // Use real instances instead of mocks to avoid final class mocking issues
+        indigoService = IndigoReservationService()
+        airIndiaService = AirIndiaReservationService()
+        spiceJetService = SpiceJetReservationService()
+        vistaraService = VistaraReservationService()
+        goAirService = GoAirReservationService()
         
         airlineIntegrationManager = AirlineIntegrationManager(
             indigoService,

@@ -1,6 +1,8 @@
 package com.credair.core.manager
 
 import com.credair.core.dao.interfaces.AirlineDao
+import com.credair.core.exception.ResourceNotFoundException
+import com.credair.core.exception.ValidationException
 import com.credair.core.model.Airline
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -45,7 +47,7 @@ class AirlineManagerTest {
     fun `createAirline should throw exception when airline name is blank`() {
         val airline = createValidAirline().copy(name = "")
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Airline name cannot be blank", exception.message)
@@ -55,7 +57,7 @@ class AirlineManagerTest {
     fun `createAirline should throw exception when airline code is blank`() {
         val airline = createValidAirline().copy(code = "")
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Airline code cannot be blank", exception.message)
@@ -65,7 +67,7 @@ class AirlineManagerTest {
     fun `createAirline should throw exception when airline code is too short`() {
         val airline = createValidAirline().copy(code = "A")
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Airline code must be 2-3 characters", exception.message)
@@ -75,7 +77,7 @@ class AirlineManagerTest {
     fun `createAirline should throw exception when airline code is too long`() {
         val airline = createValidAirline().copy(code = "ABCD")
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Airline code must be 2-3 characters", exception.message)
@@ -85,7 +87,7 @@ class AirlineManagerTest {
     fun `createAirline should throw exception when airline code contains lowercase letters`() {
         val airline = createValidAirline().copy(code = "ai")
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Airline code must contain only uppercase letters", exception.message)
@@ -95,7 +97,7 @@ class AirlineManagerTest {
     fun `createAirline should throw exception when airline code contains numbers`() {
         val airline = createValidAirline().copy(code = "A1")
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Airline code must contain only uppercase letters", exception.message)
@@ -105,7 +107,7 @@ class AirlineManagerTest {
     fun `createAirline should throw exception when country is blank`() {
         val airline = createValidAirline().copy(country = "")
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Country cannot be blank", exception.message)
@@ -118,7 +120,7 @@ class AirlineManagerTest {
 
         whenever(airlineDao.findByCode("AI")).thenReturn(existingAirline)
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.createAirline(airline)
         }
         assertEquals("Airline with code AI already exists", exception.message)
@@ -149,10 +151,10 @@ class AirlineManagerTest {
 
         whenever(airlineDao.findById(999L)).thenReturn(null)
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<RuntimeException> {
             airlineManager.updateAirline(999L, airline)
         }
-        assertEquals("Airline with id 999 not found", exception.message)
+        assertEquals("Failed to update airline: Airline with id 999 not found", exception.message)
     }
 
     @Test
@@ -164,7 +166,7 @@ class AirlineManagerTest {
         whenever(airlineDao.findById(1L)).thenReturn(existingAirline)
         whenever(airlineDao.findByCode("SG")).thenReturn(conflictingAirline)
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ValidationException> {
             airlineManager.updateAirline(1L, updatedAirlineData)
         }
         assertEquals("Airline with code SG already exists", exception.message)
@@ -202,7 +204,7 @@ class AirlineManagerTest {
     fun `getAirlineById should throw exception when not found`() {
         whenever(airlineDao.findById(999L)).thenReturn(null)
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ResourceNotFoundException> {
             airlineManager.getAirlineById(999L)
         }
         assertEquals("Airline with id 999 not found", exception.message)
@@ -330,7 +332,7 @@ class AirlineManagerTest {
     fun `deleteAirline should throw exception when airline not found`() {
         whenever(airlineDao.findById(999L)).thenReturn(null)
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<ResourceNotFoundException> {
             airlineManager.deleteAirline(999L)
         }
         assertEquals("Airline with id 999 not found", exception.message)
