@@ -2,9 +2,6 @@ package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.BookingDao
 import com.credair.core.model.Booking
-import com.credair.core.model.BookingStatus
-import com.credair.core.model.PaymentStatus
-import com.credair.core.model.CheckInStatus
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
@@ -20,60 +17,39 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
         Booking(
             id = rs.getLong("id"),
             bookingReference = rs.getString("booking_reference"),
-            flightId = rs.getLong("flight_id"),
-            passengerName = rs.getString("passenger_name"),
-            passengerEmail = rs.getString("passenger_email"),
-            passengerPhone = rs.getString("passenger_phone"),
-            seatNumber = rs.getString("seat_number"),
-            numberOfSeats = rs.getInt("number_of_seats"),
             totalPrice = rs.getBigDecimal("total_price"),
             currency = rs.getString("currency"),
-            bookingStatus = BookingStatus.valueOf(rs.getString("booking_status")),
-            paymentStatus = PaymentStatus.valueOf(rs.getString("payment_status")),
-            bookingDate = rs.getTimestamp("booking_date").toLocalDateTime(),
+            passengerCount = rs.getInt("passenger_count"),
+            bookingStatus = rs.getString("booking_status"),
+            paymentStatus = rs.getString("payment_status"),
             paymentMethod = rs.getString("payment_method"),
-            specialRequests = rs.getString("special_requests"),
-            checkInStatus = CheckInStatus.valueOf(rs.getString("check_in_status")),
-            createdAt = rs.getTimestamp("created_at")?.toLocalDateTime(),
-            updatedAt = rs.getTimestamp("updated_at")?.toLocalDateTime()
+            paymentTransactionId = rs.getString("payment_transaction_id"),
+            createdAt = rs.getTimestamp("created_at"),
+            updatedAt = rs.getTimestamp("updated_at")
         )
     }
 
     override fun save(entity: Booking): Booking {
-        val now = LocalDateTime.now()
         val newId = jdbi.withHandle<Long, Exception> { handle ->
             handle.createUpdate("""
-                INSERT INTO bookings (booking_reference, flight_id, passenger_name, passenger_email, 
-                                     passenger_phone, seat_number, number_of_seats, total_price, currency,
-                                     booking_status, payment_status, booking_date, payment_method, 
-                                     special_requests, check_in_status, created_at, updated_at)
-                VALUES (:bookingReference, :flightId, :passengerName, :passengerEmail, 
-                        :passengerPhone, :seatNumber, :numberOfSeats, :totalPrice, :currency,
-                        :bookingStatus, :paymentStatus, :bookingDate, :paymentMethod, 
-                        :specialRequests, :checkInStatus, :createdAt, :updatedAt)
+                INSERT INTO bookings (booking_reference, total_price, currency, passenger_count,
+                                     booking_status, payment_status, payment_method, payment_transaction_id)
+                VALUES (:bookingReference, :totalPrice, :currency, :passengerCount,
+                        :bookingStatus, :paymentStatus, :paymentMethod, :paymentTransactionId)
             """)
                 .bind("bookingReference", entity.bookingReference)
-                .bind("flightId", entity.flightId)
-                .bind("passengerName", entity.passengerName)
-                .bind("passengerEmail", entity.passengerEmail)
-                .bind("passengerPhone", entity.passengerPhone)
-                .bind("seatNumber", entity.seatNumber)
-                .bind("numberOfSeats", entity.numberOfSeats)
                 .bind("totalPrice", entity.totalPrice)
                 .bind("currency", entity.currency)
-                .bind("bookingStatus", entity.bookingStatus.name)
-                .bind("paymentStatus", entity.paymentStatus.name)
-                .bind("bookingDate", entity.bookingDate)
+                .bind("passengerCount", entity.passengerCount)
+                .bind("bookingStatus", entity.bookingStatus)
+                .bind("paymentStatus", entity.paymentStatus)
                 .bind("paymentMethod", entity.paymentMethod)
-                .bind("specialRequests", entity.specialRequests)
-                .bind("checkInStatus", entity.checkInStatus.name)
-                .bind("createdAt", now)
-                .bind("updatedAt", now)
+                .bind("paymentTransactionId", entity.paymentTransactionId)
                 .executeAndReturnGeneratedKeys("id")
                 .mapTo(Long::class.java)
                 .one()
         }
-        return entity.copy(id = newId, createdAt = now, updatedAt = now)
+        return entity.copy(id = newId)
     }
 
     override fun update(entity: Booking): Booking {
@@ -81,36 +57,26 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
         jdbi.withHandle<Unit, Exception> { handle ->
             handle.createUpdate("""
                 UPDATE bookings 
-                SET booking_reference = :bookingReference, flight_id = :flightId, 
-                    passenger_name = :passengerName, passenger_email = :passengerEmail,
-                    passenger_phone = :passengerPhone, seat_number = :seatNumber,
-                    number_of_seats = :numberOfSeats, total_price = :totalPrice,
-                    currency = :currency, booking_status = :bookingStatus,
-                    payment_status = :paymentStatus, booking_date = :bookingDate,
-                    payment_method = :paymentMethod, special_requests = :specialRequests,
-                    check_in_status = :checkInStatus, updated_at = :updatedAt
+                SET booking_reference = :bookingReference, total_price = :totalPrice,
+                    currency = :currency, passenger_count = :passengerCount,
+                    booking_status = :bookingStatus, payment_status = :paymentStatus,
+                    payment_method = :paymentMethod, payment_transaction_id = :paymentTransactionId,
+                    updated_at = :updatedAt
                 WHERE id = :id
             """)
                 .bind("id", entity.id)
                 .bind("bookingReference", entity.bookingReference)
-                .bind("flightId", entity.flightId)
-                .bind("passengerName", entity.passengerName)
-                .bind("passengerEmail", entity.passengerEmail)
-                .bind("passengerPhone", entity.passengerPhone)
-                .bind("seatNumber", entity.seatNumber)
-                .bind("numberOfSeats", entity.numberOfSeats)
                 .bind("totalPrice", entity.totalPrice)
                 .bind("currency", entity.currency)
-                .bind("bookingStatus", entity.bookingStatus.name)
-                .bind("paymentStatus", entity.paymentStatus.name)
-                .bind("bookingDate", entity.bookingDate)
+                .bind("passengerCount", entity.passengerCount)
+                .bind("bookingStatus", entity.bookingStatus)
+                .bind("paymentStatus", entity.paymentStatus)
                 .bind("paymentMethod", entity.paymentMethod)
-                .bind("specialRequests", entity.specialRequests)
-                .bind("checkInStatus", entity.checkInStatus.name)
+                .bind("paymentTransactionId", entity.paymentTransactionId)
                 .bind("updatedAt", now)
                 .execute()
         }
-        return entity.copy(updatedAt = now)
+        return entity.copy(updatedAt = java.sql.Timestamp.valueOf(now))
     }
 
     override fun findById(id: Long): Booking? {
@@ -149,55 +115,27 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
         }
     }
 
-    override fun findByFlightId(flightId: Long): List<Booking> {
+    override fun findByBookingStatus(status: String): List<Booking> {
         return jdbi.withHandle<List<Booking>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM bookings WHERE flight_id = :flightId ORDER BY booking_date DESC")
-                .bind("flightId", flightId)
+            handle.createQuery("SELECT * FROM bookings WHERE booking_status = :status ORDER BY created_at DESC")
+                .bind("status", status)
                 .map(bookingMapper)
                 .list()
         }
     }
 
-    override fun findByPassengerEmail(passengerEmail: String): List<Booking> {
+    override fun findByPaymentStatus(status: String): List<Booking> {
         return jdbi.withHandle<List<Booking>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM bookings WHERE passenger_email = :passengerEmail ORDER BY booking_date DESC")
-                .bind("passengerEmail", passengerEmail)
+            handle.createQuery("SELECT * FROM bookings WHERE payment_status = :status ORDER BY created_at DESC")
+                .bind("status", status)
                 .map(bookingMapper)
                 .list()
         }
     }
 
-    override fun findByPassengerEmailAndFlightId(passengerEmail: String, flightId: Long): List<Booking> {
+    override fun findByCreatedDateRange(startDate: LocalDateTime, endDate: LocalDateTime): List<Booking> {
         return jdbi.withHandle<List<Booking>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM bookings WHERE passenger_email = :passengerEmail AND flight_id = :flightId ORDER BY booking_date DESC")
-                .bind("passengerEmail", passengerEmail)
-                .bind("flightId", flightId)
-                .map(bookingMapper)
-                .list()
-        }
-    }
-
-    override fun findByBookingStatus(status: BookingStatus): List<Booking> {
-        return jdbi.withHandle<List<Booking>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM bookings WHERE booking_status = :status ORDER BY booking_date DESC")
-                .bind("status", status.name)
-                .map(bookingMapper)
-                .list()
-        }
-    }
-
-    override fun findByPaymentStatus(status: PaymentStatus): List<Booking> {
-        return jdbi.withHandle<List<Booking>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM bookings WHERE payment_status = :status ORDER BY booking_date DESC")
-                .bind("status", status.name)
-                .map(bookingMapper)
-                .list()
-        }
-    }
-
-    override fun findByBookingDateRange(startDate: LocalDateTime, endDate: LocalDateTime): List<Booking> {
-        return jdbi.withHandle<List<Booking>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM bookings WHERE booking_date BETWEEN :startDate AND :endDate ORDER BY booking_date DESC")
+            handle.createQuery("SELECT * FROM bookings WHERE created_at BETWEEN :startDate AND :endDate ORDER BY created_at DESC")
                 .bind("startDate", startDate)
                 .bind("endDate", endDate)
                 .map(bookingMapper)
@@ -205,59 +143,33 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
         }
     }
 
-    override fun findActiveBookings(): List<Booking> {
-        return jdbi.withHandle<List<Booking>, Exception> { handle ->
-            handle.createQuery("SELECT * FROM bookings WHERE booking_status IN ('PENDING', 'CONFIRMED') ORDER BY booking_date DESC")
-                .map(bookingMapper)
-                .list()
-        }
-    }
-
-    override fun updateBookingStatus(bookingId: Long, status: BookingStatus): Boolean {
+    override fun updateBookingStatus(bookingId: Long, status: String): Boolean {
         return jdbi.withHandle<Int, Exception> { handle ->
             handle.createUpdate("UPDATE bookings SET booking_status = :status, updated_at = :updatedAt WHERE id = :id")
                 .bind("id", bookingId)
-                .bind("status", status.name)
+                .bind("status", status)
                 .bind("updatedAt", LocalDateTime.now())
                 .execute()
         } > 0
     }
 
-    override fun updatePaymentStatus(bookingId: Long, status: PaymentStatus): Boolean {
+    override fun updatePaymentStatus(bookingId: Long, status: String): Boolean {
         return jdbi.withHandle<Int, Exception> { handle ->
             handle.createUpdate("UPDATE bookings SET payment_status = :status, updated_at = :updatedAt WHERE id = :id")
                 .bind("id", bookingId)
-                .bind("status", status.name)
+                .bind("status", status)
                 .bind("updatedAt", LocalDateTime.now())
                 .execute()
         } > 0
     }
 
-    override fun updateCheckInStatus(bookingId: Long, checkInStatus: CheckInStatus): Boolean {
+    override fun updatePaymentTransactionId(bookingId: Long, transactionId: String): Boolean {
         return jdbi.withHandle<Int, Exception> { handle ->
-            handle.createUpdate("UPDATE bookings SET check_in_status = :status, updated_at = :updatedAt WHERE id = :id")
+            handle.createUpdate("UPDATE bookings SET payment_transaction_id = :transactionId, updated_at = :updatedAt WHERE id = :id")
                 .bind("id", bookingId)
-                .bind("status", checkInStatus.name)
+                .bind("transactionId", transactionId)
                 .bind("updatedAt", LocalDateTime.now())
                 .execute()
         } > 0
-    }
-
-    override fun countBookingsByFlightId(flightId: Long): Int {
-        return jdbi.withHandle<Int, Exception> { handle ->
-            handle.createQuery("SELECT COUNT(*) FROM bookings WHERE flight_id = :flightId AND booking_status IN ('PENDING', 'CONFIRMED')")
-                .bind("flightId", flightId)
-                .mapTo(Int::class.java)
-                .one()
-        }
-    }
-
-    override fun getTotalSeatsBookedForFlight(flightId: Long): Int {
-        return jdbi.withHandle<Int, Exception> { handle ->
-            handle.createQuery("SELECT COALESCE(SUM(number_of_seats), 0) FROM bookings WHERE flight_id = :flightId AND booking_status IN ('PENDING', 'CONFIRMED')")
-                .bind("flightId", flightId)
-                .mapTo(Int::class.java)
-                .one()
-        }
     }
 }
