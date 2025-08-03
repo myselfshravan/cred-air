@@ -1,44 +1,36 @@
-# Airline Management Module
+# Airline Management Service
 
-This module is responsible for managing airlines and their flights.
+This service is responsible for managing airline data, including onboarding new airlines and handling updates.
 
-## Running the Application
+## Design Choices
 
-### IntelliJ IDEA
-1. Create a run configuration for `com.credair.airline.AirlineApplication`
-2. Add program arguments: `server src/main/resources/server-config.yml`
-3. Run the application
+- **Framework**: Built with [Dropwizard](https://www.dropwizard.io/), a lightweight framework for building high-performance, RESTful web services.
+- **Language**: Written in [Kotlin](https://kotlinlang.org/), a modern, concise, and safe programming language.
+- **Dependency Injection**: Uses [Google Guice](https://github.com/google/guice) for managing dependencies, promoting loose coupling and testability.
 
-### Command Line
-```bash
-mvn clean install
-java -cp target/classes:target/dependency/* com.credair.airline.AirlineApplication server src/main/resources/server-config.yml
+## Layers of Responsibility
+
+The service follows a layered architecture to separate concerns:
+
+```mermaid
+graph TD
+    subgraph "Airline Management Service"
+        A[Resource Layer] --> B[Manager Layer]
+        B --> C[Core Module]
+    end
+
+    subgraph "cred-air-core"
+        C --> D[DAO Layer]
+        D --> E[(Database)]
+    end
 ```
 
-The application will start on:
-- Main server: http://localhost:8082
-- Admin interface: http://localhost:8083
+-   **Resource Layer** (`com.credair.airline.resource`): This layer is responsible for handling incoming HTTP requests and exposing RESTful endpoints. It delegates the business logic to the manager layer.
+-   **Manager Layer** (`com.credair.airline.manager`): This layer contains the core business logic for the service. It orchestrates calls to the `cred-air-core` module to interact with the database and other shared components.
+-   **Core Module** (`cred-air-core`): This is a shared module that contains the Data Access Objects (DAOs), data models, and other shared business logic.
 
-## Implementation Plan
+## Principles Followed
 
-### Airline Management
-
-- Define a data class for Airline.
-- Create a DAO to interact with the database.
-- Implement a resource to expose the following endpoints:
-  - `POST /airlines`: Register a new airline.
-  - `GET /airlines`: Get a list of all airlines.
-  - `GET /airlines/{id}`: Get details of a specific airline.
-  - `PUT /airlines/{id}`: Update details of a specific airline.
-  - `DELETE /airlines/{id}`: Delete an airline.
-
-### Flight Management
-
-- Define a data class for Flight.
-- Create a DAO to interact with the database.
-- Implement a resource to expose the following endpoints, which will be nested under an airline:
-  - `POST /airlines/{airlineId}/flights`: Register a new flight for a specific airline.
-  - `GET /airlines/{airlineId}/flights`: Get a list of all flights for a specific airline.
-  - `GET /airlines/{airlineId}/flights/{flightId}`: Get details of a specific flight for a specific airline.
-  - `PUT /airlines/{airlineId}/flights/{flightId}`: Update details of a specific flight for a specific airline.
-  - `DELETE /airlines/{airlineId}/flights/{flightId}`: Delete a flight for a specific airline.
+-   **Separation of Concerns**: Each layer has a distinct responsibility, making the codebase easier to understand, maintain, and test.
+-   **Dependency Injection**: By using Guice, we avoid tight coupling between components and can easily swap out implementations.
+-   **Interface-based Design**: The service relies on interfaces for its core components (e.g., DAOs), allowing for multiple implementations and easier testing.
