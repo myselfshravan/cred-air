@@ -3,6 +3,8 @@ package com.credair.booking
 import com.credair.booking.config.BookingModule
 import com.credair.booking.resource.BookingResource
 import com.credair.core.exception.GlobalExceptionMapper
+import com.credair.core.health.DatabaseHealthCheck
+import com.credair.core.health.ServiceHealthCheck
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
@@ -28,6 +30,10 @@ class BookingApplication : Application<BookingConfiguration>() {
         
         // Register global exception mapper
         environment.jersey().register(GlobalExceptionMapper())
+        
+        // Register health checks
+        environment.healthChecks().register("database", injector.getInstance(DatabaseHealthCheck::class.java))
+        environment.healthChecks().register("service", ServiceHealthCheck("flight-booking-service"))
         
         // Register resources
         resources().forEach { resource ->

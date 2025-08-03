@@ -2,6 +2,8 @@ package com.credair.flight.search
 
 import com.credair.flight.search.resource.FlightSearchResource
 import com.credair.core.exception.GlobalExceptionMapper
+import com.credair.core.health.DatabaseHealthCheck
+import com.credair.core.health.ServiceHealthCheck
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
@@ -27,6 +29,10 @@ class FlightSearchApplication : Application<FlightSearchConfiguration>() {
         
         // Register global exception mapper
         environment.jersey().register(GlobalExceptionMapper())
+        
+        // Register health checks
+        environment.healthChecks().register("database", injector.getInstance(DatabaseHealthCheck::class.java))
+        environment.healthChecks().register("service", ServiceHealthCheck("flight-search-service"))
         
         // Register resources
         resources().forEach { resource ->
