@@ -35,3 +35,10 @@ data class PassengerData(
     val email: String,
     val phone: String
 )
+
+data class BookingResult(
+    val mainBooking: Booking,
+    val flightBookings: List<FlightBooking>,
+    val passengers: List<FlightPassenger>,
+    val paymentIntent: com.credair.core.payment.PaymentProvider.PaymentIntent
+)

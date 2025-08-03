@@ -2,6 +2,8 @@ package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.BookingDao
 import com.credair.core.model.Booking
+import com.credair.core.model.BookingStatus
+import com.credair.core.model.PaymentStatus
 import com.google.inject.Inject
 import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
@@ -20,8 +22,8 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
             totalPrice = rs.getBigDecimal("total_price"),
             currency = rs.getString("currency"),
             passengerCount = rs.getInt("passenger_count"),
-            bookingStatus = rs.getString("booking_status"),
-            paymentStatus = rs.getString("payment_status"),
+            bookingStatus = BookingStatus.valueOf(rs.getString("booking_status")),
+            paymentStatus = PaymentStatus.valueOf(rs.getString("payment_status")),
             paymentMethod = rs.getString("payment_method"),
             paymentTransactionId = rs.getString("payment_transaction_id"),
             createdAt = rs.getTimestamp("created_at"),
@@ -41,8 +43,8 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
                 .bind("totalPrice", entity.totalPrice)
                 .bind("currency", entity.currency)
                 .bind("passengerCount", entity.passengerCount)
-                .bind("bookingStatus", entity.bookingStatus)
-                .bind("paymentStatus", entity.paymentStatus)
+                .bind("bookingStatus", entity.bookingStatus.name)
+                .bind("paymentStatus", entity.paymentStatus.name)
                 .bind("paymentMethod", entity.paymentMethod)
                 .bind("paymentTransactionId", entity.paymentTransactionId)
                 .executeAndReturnGeneratedKeys("id")
@@ -69,8 +71,8 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
                 .bind("totalPrice", entity.totalPrice)
                 .bind("currency", entity.currency)
                 .bind("passengerCount", entity.passengerCount)
-                .bind("bookingStatus", entity.bookingStatus)
-                .bind("paymentStatus", entity.paymentStatus)
+                .bind("bookingStatus", entity.bookingStatus.name)
+                .bind("paymentStatus", entity.paymentStatus.name)
                 .bind("paymentMethod", entity.paymentMethod)
                 .bind("paymentTransactionId", entity.paymentTransactionId)
                 .bind("updatedAt", now)
@@ -115,19 +117,19 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
         }
     }
 
-    override fun findByBookingStatus(status: String): List<Booking> {
+    override fun findByBookingStatus(status: BookingStatus): List<Booking> {
         return jdbi.withHandle<List<Booking>, Exception> { handle ->
             handle.createQuery("SELECT * FROM bookings WHERE booking_status = :status ORDER BY created_at DESC")
-                .bind("status", status)
+                .bind("status", status.name)
                 .map(bookingMapper)
                 .list()
         }
     }
 
-    override fun findByPaymentStatus(status: String): List<Booking> {
+    override fun findByPaymentStatus(status: PaymentStatus): List<Booking> {
         return jdbi.withHandle<List<Booking>, Exception> { handle ->
             handle.createQuery("SELECT * FROM bookings WHERE payment_status = :status ORDER BY created_at DESC")
-                .bind("status", status)
+                .bind("status", status.name)
                 .map(bookingMapper)
                 .list()
         }
@@ -143,21 +145,21 @@ class BookingDaoJdbiImpl @Inject constructor(private val jdbi: Jdbi) : BookingDa
         }
     }
 
-    override fun updateBookingStatus(bookingId: Long, status: String): Boolean {
+    override fun updateBookingStatus(bookingId: Long, status: BookingStatus): Boolean {
         return jdbi.withHandle<Int, Exception> { handle ->
             handle.createUpdate("UPDATE bookings SET booking_status = :status, updated_at = :updatedAt WHERE id = :id")
                 .bind("id", bookingId)
-                .bind("status", status)
+                .bind("status", status.name)
                 .bind("updatedAt", LocalDateTime.now())
                 .execute()
         } > 0
     }
 
-    override fun updatePaymentStatus(bookingId: Long, status: String): Boolean {
+    override fun updatePaymentStatus(bookingId: Long, status: PaymentStatus): Boolean {
         return jdbi.withHandle<Int, Exception> { handle ->
             handle.createUpdate("UPDATE bookings SET payment_status = :status, updated_at = :updatedAt WHERE id = :id")
                 .bind("id", bookingId)
-                .bind("status", status)
+                .bind("status", status.name)
                 .bind("updatedAt", LocalDateTime.now())
                 .execute()
         } > 0

@@ -22,10 +22,10 @@ data class Booking(
     val passengerCount: Int,
     
     @JsonProperty("booking_status")
-    val bookingStatus: String,
+    val bookingStatus: BookingStatus,
     
     @JsonProperty("payment_status")
-    val paymentStatus: String,
+    val paymentStatus: PaymentStatus,
     
     @JsonProperty("payment_method")
     val paymentMethod: String? = null,
