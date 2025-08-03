@@ -36,6 +36,7 @@ export interface FlightSegment {
   arrival: FlightStop;
   segmentDuration: number;
   price: FlightPrice;
+  id: number;
 }
 
 export interface Layover {

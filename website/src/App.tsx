@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import {Header} from './components/Header';
-import {ConfirmationScreen, FlightDetailsScreen, PaymentScreen, ResultsScreen, SearchScreen} from './screens';
+import {ConfirmationScreen, FlightDetailsScreen, ResultsScreen, SearchScreen} from './screens';
 
 type AppView = 'search' | 'admin';
 

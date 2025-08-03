@@ -81,7 +81,7 @@ export function FlightDetailsScreen() {
     
     try {
       const bookingDetails: BookingRequestPayload = {
-        flightIds: flightJourney.segments.map(segment => segment.airline.name),
+        flightIds: flightJourney.segments.map(segment => segment.id.toString()),
         passengerData: passengerList.map(passenger => ({
           title: passenger.title,
           firstName: passenger.firstName,
@@ -91,10 +91,10 @@ export function FlightDetailsScreen() {
           phone: passenger.phone,
           id: passenger.id ?? ''
         })),
-        flightPrices: flightJourney.segments.map(flightId => ({
-          flightId: flightId.airline.name,
-          price: flightJourney.price.amount,
-          currency: flightJourney.price.currency
+        flightPrices: flightJourney.segments.map(segment => ({
+          flightId: segment.id.toString(),
+          price: segment.price.amount,
+          currency: segment.price.currency
         })),
         totalPrice: flightJourney.price.amount,
         passengerCount: passengerList.length
