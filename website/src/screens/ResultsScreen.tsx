@@ -94,7 +94,22 @@ export function ResultsScreen() {
 
     setLoadingFlightDetails(true);
     try {
-      navigate(`/flight-details?flightIds=${flight.flightIds.join(',')}`);
+      const detailParams = new URLSearchParams();
+      detailParams.set('flightIds', flight.flightIds.join(','));
+      
+      // Include original search parameters
+      if (searchParams) {
+        detailParams.set('from', searchParams.from);
+        detailParams.set('to', searchParams.to);
+        detailParams.set('departDate', searchParams.departDate);
+        if (searchParams.returnDate) {
+          detailParams.set('returnDate', searchParams.returnDate);
+        }
+        detailParams.set('passengers', searchParams.passengers.toString());
+        detailParams.set('class', searchParams.class);
+      }
+      
+      navigate(`/flight-details?${detailParams.toString()}`);
     } catch (error) {
       console.error('Failed to navigate to flight details:', error);
     } finally {

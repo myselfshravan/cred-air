@@ -1,13 +1,14 @@
 import {useEffect, useRef, useState} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
 import {FlightDetailPage} from '../components/FlightDetailPage';
-import {FlightJourney, Passenger} from '../types/flight';
+import {FlightJourney, Passenger, SearchParams} from '../types/flight';
 import {getFlightJourney} from '../services/api';
 
 export function FlightDetailsScreen() {
   const [flightJourney, setFlightJourney] = useState<FlightJourney | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
   const navigate = useNavigate();
   const [urlSearchParams] = useSearchParams();
   const lastFlightIds = useRef<string>('');
@@ -22,6 +23,27 @@ export function FlightDetailsScreen() {
       }
       
       lastFlightIds.current = flightIds;
+      
+      // Extract search parameters from URL
+      const from = urlSearchParams.get('from');
+      const to = urlSearchParams.get('to');
+      const departDate = urlSearchParams.get('departDate');
+      const returnDate = urlSearchParams.get('returnDate');
+      const passengers = urlSearchParams.get('passengers');
+      const flightClass = urlSearchParams.get('class');
+
+      if (from && to && departDate && passengers && flightClass) {
+        const params: SearchParams = {
+          from,
+          to,
+          departDate,
+          returnDate: returnDate || undefined,
+          passengers: parseInt(passengers),
+          class: flightClass as 'economy' | 'business' | 'first'
+        };
+        setSearchParams(params);
+      }
+      
       fetchFlightDetails(flightIds.split(','));
     } else {
       navigate('/');
@@ -107,6 +129,7 @@ export function FlightDetailsScreen() {
   return (
     <FlightDetailPage
       flightJourney={flightJourney}
+      searchParams={searchParams}
       onBack={handleBackToResults}
       onContinueToPayment={handleContinueToPayment}
     />

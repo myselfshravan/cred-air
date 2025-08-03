@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ArrowLeft, Calendar, Mail, Phone, User} from 'lucide-react';
+import {ArrowLeft, Calendar, Mail, Phone, User, Plus, Minus} from 'lucide-react';
 import {FlightJourney, Passenger, SearchParams} from '../types/flight';
 import {FlightTimelineView} from './FlightTimelineView';
 import {PriceBreakdown} from './PriceBreakdown';
@@ -19,10 +19,11 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
 }) => {
   const defaultPassengers = 1;
   const requestedPassengers = searchParams?.passengers || defaultPassengers;
-  const maxPassengers = Math.min(requestedPassengers, 1);
+  const initialPassengerCount = requestedPassengers;
   
+  const [currentPassengerCount, setCurrentPassengerCount] = useState(initialPassengerCount);
   const [passengers, setPassengers] = useState<Passenger[]>(
-    Array.from({ length: maxPassengers }, (_, i) => ({
+    Array.from({ length: initialPassengerCount }, (_, i) => ({
       id: `passenger-${i}`,
       title: 'Mr',
       firstName: '',
@@ -37,6 +38,28 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
     setPassengers(prev => prev.map((passenger, i) => 
       i === index ? { ...passenger, [field]: value } : passenger
     ));
+  };
+
+  const handleAddPassenger = () => {
+    const newPassengerIndex = currentPassengerCount;
+    const newPassenger: Passenger = {
+      id: `passenger-${newPassengerIndex}`,
+      title: 'Mr',
+      firstName: '',
+      lastName: '',
+      dateOfBirth: '',
+      email: '',
+      phone: ''
+    };
+    setPassengers(prev => [...prev, newPassenger]);
+    setCurrentPassengerCount(prev => prev + 1);
+  };
+
+  const handleRemovePassenger = (indexToRemove: number) => {
+    if (currentPassengerCount > 1 && indexToRemove > 0) { // Can't remove first passenger (primary contact)
+      setPassengers(prev => prev.filter((_, index) => index !== indexToRemove));
+      setCurrentPassengerCount(prev => prev - 1);
+    }
   };
 
   const validatePassengers = () => {
@@ -83,28 +106,28 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
               <User className="w-5 h-5 text-blue-600" />
               <h3 className="text-xl font-semibold text-gray-900">Traveller Details</h3>
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                {maxPassengers} {maxPassengers === 1 ? 'Passenger' : 'Passengers'}
+                {currentPassengerCount} {currentPassengerCount === 1 ? 'Passenger' : 'Passengers'}
               </span>
             </div>
 
-            {maxPassengers < requestedPassengers && (
-              <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-orange-500 rounded-full flex-shrink-0"></div>
-                  {/*<p className="text-sm text-orange-800">*/}
-                  {/*  Only {flight.availableSeats || 1} seats available on this flight. */}
-                  {/*  Passenger count adjusted from {requestedPassengers} to {maxPassengers}.*/}
-                  {/*</p>*/}
-                </div>
-              </div>
-            )}
 
             <div className="space-y-6">
               {passengers.map((passenger, index) => (
                 <div key={passenger.id} className="border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-md font-medium text-gray-900 mb-4">
-                    Passenger {index + 1} {index === 0 && '(Primary Contact)'}
-                  </h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-md font-medium text-gray-900">
+                      Passenger {index + 1} {index === 0 && '(Primary Contact)'}
+                    </h4>
+                    {index > 0 && (
+                      <button
+                        onClick={() => handleRemovePassenger(index)}
+                        className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 hover:border-red-400 hover:bg-red-50 transition-colors"
+                        title="Remove this passenger"
+                      >
+                        <Minus className="w-4 h-4 text-red-600" />
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -189,6 +212,15 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
                   </div>
                 </div>
               ))}
+              
+              {/* Add Passenger Button */}
+              <button
+                onClick={handleAddPassenger}
+                className="w-full border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 rounded-lg p-6 flex items-center justify-center space-x-2 transition-colors"
+              >
+                <Plus className="w-5 h-5 text-blue-600" />
+                <span className="text-blue-600 font-medium">Add Another Passenger</span>
+              </button>
             </div>
           </div>
         </div>
@@ -201,7 +233,7 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
           {/* Price Breakdown Section */}
           <PriceBreakdown 
             flightJourney={flightJourney} 
-            passengerCount={Math.max(maxPassengers, 1)}
+            passengerCount={currentPassengerCount}
             onContinueToPayment={handleContinue}
             disabled={!validatePassengers()}
           />
