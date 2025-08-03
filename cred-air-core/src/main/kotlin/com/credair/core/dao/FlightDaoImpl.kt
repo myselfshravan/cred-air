@@ -7,7 +7,6 @@ import com.google.inject.Singleton
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.mapper.RowMapper
 import org.jdbi.v3.core.statement.StatementContext
-import java.math.BigDecimal
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.time.Duration
@@ -293,7 +292,8 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                     price = FlightPrice(
                         amount = flight.price,
                         currency = flight.currency
-                    )
+                    ),
+                    id = flight.flightId
                 )
             }
 

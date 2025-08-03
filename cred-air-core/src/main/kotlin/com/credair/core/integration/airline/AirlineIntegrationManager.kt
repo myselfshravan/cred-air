@@ -12,8 +12,8 @@ class AirlineIntegrationManager @Inject constructor(
 ) {
     
     private val airlineProviders = mapOf(
-        "AA" to indigoService,
-        "DL" to airIndiaService
+        "6E" to indigoService,  // IndiGo
+        "AI" to airIndiaService  // Air India
     )
     
     fun getReservationService(airlineCode: String): AirlineReservationService? {

@@ -1,8 +1,9 @@
 package com.credair.core.manager
 
+import com.credair.core.dao.interfaces.AirlineDao
 import com.credair.core.dao.interfaces.BookingDao
 import com.credair.core.dao.interfaces.FlightDao
-import com.credair.core.integration.airline.AirlineReservationService
+import com.credair.core.integration.airline.AirlineIntegrationManager
 import com.credair.core.integration.airline.PassengerInfo
 import com.credair.core.integration.airline.ReservationRequest
 import com.credair.core.model.Booking
@@ -26,9 +27,10 @@ import java.time.format.DateTimeFormatter
 class BookingManager @Inject constructor(
     private val bookingDao: BookingDao,
     private val flightDao: FlightDao,
+    private val airlineDao: AirlineDao,
     private val bookingRepository: BookingRepository,
     private val paymentProvider: PaymentProvider,
-    private val airlineReservationService: AirlineReservationService
+    private val airlineIntegrationManager: AirlineIntegrationManager
 ) {
 
     suspend fun createBookingFromPayload(payload: BookingRequestPayload): BookingResult {
@@ -220,6 +222,13 @@ class BookingManager @Inject constructor(
             val flight = flightDao.findById(flightBooking.flightId.toLong())
                 ?: throw IllegalArgumentException("Flight with id ${flightBooking.flightId} not found")
             
+            // Get airline information to determine the correct service
+            val airline = airlineDao.findById(flight.airlineId)
+                ?: throw IllegalArgumentException("Airline with id ${flight.airlineId} not found")
+            
+            val airlineReservationService = airlineIntegrationManager.getReservationService(airline.code)
+                ?: throw IllegalStateException("No reservation service available for airline ${airline.code}")
+            
             val reservationRequest = ReservationRequest(
                 booking = Booking(
                     bookingReference = "TEMP-${System.currentTimeMillis()}",
@@ -236,7 +245,7 @@ class BookingManager @Inject constructor(
             val reservationResponse = airlineReservationService.softReserve(reservationRequest)
             
             if (!reservationResponse.success) {
-                throw IllegalStateException("Failed to reserve flight ${flightBooking.flightId}: ${reservationResponse.error}")
+                throw IllegalStateException("Failed to reserve flight ${flightBooking.flightId} with airline ${airline.code}: ${reservationResponse.error}")
             }
             
             reservationResults[flightBooking.flightId] = reservationResponse.airlineConfirmationCode ?: ""

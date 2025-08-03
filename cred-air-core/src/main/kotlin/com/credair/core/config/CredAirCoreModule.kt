@@ -2,10 +2,14 @@ package com.credair.core.config
 
 import com.credair.core.dao.AirlineDaoImpl
 import com.credair.core.dao.BookingDaoJdbiImpl
+import com.credair.core.dao.FlightBookingDaoJdbiImpl
 import com.credair.core.dao.FlightDaoImpl
+import com.credair.core.dao.FlightPassengerDaoJdbiImpl
 import com.credair.core.dao.interfaces.AirlineDao
 import com.credair.core.dao.interfaces.BookingDao
+import com.credair.core.dao.interfaces.FlightBookingDao
 import com.credair.core.dao.interfaces.FlightDao
+import com.credair.core.dao.interfaces.FlightPassengerDao
 import com.credair.core.payment.PaymentProvider
 import com.credair.core.payment.StripePaymentManager
 import com.credair.core.util.DatabaseConfig
@@ -25,6 +29,8 @@ class CredAirCoreModule : AbstractModule() {
         bind(AirlineDao::class.java).to(AirlineDaoImpl::class.java)
         bind(FlightDao::class.java).to(FlightDaoImpl::class.java)
         bind(BookingDao::class.java).to(BookingDaoJdbiImpl::class.java)
+        bind(FlightPassengerDao::class.java).to(FlightPassengerDaoJdbiImpl::class.java)
+        bind(FlightBookingDao::class.java).to(FlightBookingDaoJdbiImpl::class.java)
         bind(PaymentProvider::class.java).to(StripePaymentManager::class.java)
     }
     

@@ -1,7 +1,6 @@
 package com.credair.core.model
 
 import java.math.BigDecimal
-import java.time.LocalTime
 import java.time.Duration
 
 /**
@@ -35,6 +34,7 @@ data class FlightSegment(
     val arrival: FlightStop,
     val segmentDuration: Duration,
     val price: FlightPrice,
+    val id: Long
 )
 
 /**

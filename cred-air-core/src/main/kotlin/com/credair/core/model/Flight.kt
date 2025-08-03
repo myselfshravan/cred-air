@@ -7,7 +7,7 @@ import java.time.LocalDateTime
 
 data class Flight(
     @JsonProperty("flight_id")
-    val flightId: Long? = null,
+    val flightId: Long,
     
     @JsonProperty("flight_number")
     val flightNumber: String,
