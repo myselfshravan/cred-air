@@ -111,7 +111,21 @@ export interface SearchParams {
   class: 'economy' | 'business' | 'first';
 }
 
-export interface Passenger {
+export interface BookingRequestPayload {
+  flightIds: string[];
+  passengerData: PassengerData[];
+  flightPrices: FlightPricePayload[];
+  totalPrice: number;
+  passengerCount: number;
+}
+
+export interface FlightPricePayload {
+  flightId: string;
+  price: number;
+  currency: string;
+}
+
+export interface PassengerData {
   id: string;
   title: string;
   firstName: string;
@@ -121,17 +135,4 @@ export interface Passenger {
   phone: string;
 }
 
-export interface BookingDetails {
-  flight: Flight;
-  passengers: Passenger[];
-  totalPrice: number;
-  bookingReference?: string;
-}
-
-export interface PaymentDetails {
-  cardNumber: string;
-  expiryMonth: string;
-  expiryYear: string;
-  cvv: string;
-  cardholderName: string;
-}
+export type PaymentStatus = 'pending' | 'confirmed' | 'failed';

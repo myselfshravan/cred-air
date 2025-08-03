@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Plane, Clock, ChevronUp, ChevronDown} from 'lucide-react';
+import {Clock, ChevronUp, ChevronDown} from 'lucide-react';
 import {FlightJourney} from '../types/flight';
 
 interface FlightTimelineViewProps {

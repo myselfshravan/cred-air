@@ -1,8 +1,8 @@
 import {useEffect, useRef, useState} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
 import {FlightDetailPage} from '../components/FlightDetailPage';
-import {FlightJourney, Passenger, SearchParams} from '../types/flight';
-import {getFlightJourney} from '../services/api';
+import {BookingRequestPayload, FlightJourney, PassengerData, SearchParams} from '../types/flight';
+import {getFlightJourney, bookFlight} from '../services/api';
 
 export function FlightDetailsScreen() {
   const [flightJourney, setFlightJourney] = useState<FlightJourney | null>(null);
@@ -73,14 +73,45 @@ export function FlightDetailsScreen() {
     navigate(-1); // Go back to previous page
   };
 
-  const handleContinueToPayment = (passengerList: Passenger[]) => {
-    const flightIds = urlSearchParams.get('flightIds');
-    const paymentParams = new URLSearchParams();
-    if (flightIds) {
-      paymentParams.set('flightIds', flightIds);
+  const handleContinueToPayment = async (passengerList: PassengerData[]) => {
+    if (!flightJourney) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const bookingDetails: BookingRequestPayload = {
+        flightIds: flightJourney.segments.map(segment => segment.airline.name),
+        passengerData: passengerList.map(passenger => ({
+          title: passenger.title,
+          firstName: passenger.firstName,
+          lastName: passenger.lastName,
+          dateOfBirth: passenger.dateOfBirth,
+          email: passenger.email,
+          phone: passenger.phone,
+          id: passenger.id ?? ''
+        })),
+        flightPrices: flightJourney.segments.map(flightId => ({
+          flightId: flightId.airline.name,
+          price: flightJourney.price.amount,
+          currency: flightJourney.price.currency
+        })),
+        totalPrice: flightJourney.price.amount,
+        passengerCount: passengerList.length
+      }
+      
+      const result = await bookFlight(bookingDetails);
+      
+      if (result.success) {
+        // Navigate to success page or show success message
+        navigate(`/booking-success?reference=${result.bookingReference}`);
+      }
+    } catch (error) {
+      console.error('Booking failed:', error);
+      setError('Booking failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    paymentParams.set('passengerData', JSON.stringify(passengerList));
-    navigate(`/payment?${paymentParams.toString()}`);
   };
 
   if (loading) {
@@ -129,7 +160,7 @@ export function FlightDetailsScreen() {
   return (
     <FlightDetailPage
       flightJourney={flightJourney}
-      searchParams={searchParams}
+      searchParams={searchParams ?? undefined}
       onBack={handleBackToResults}
       onContinueToPayment={handleContinueToPayment}
     />

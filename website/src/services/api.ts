@@ -1,4 +1,11 @@
-import { Flight, SearchParams, BookingDetails, PaymentDetails, FlightSearchResponse, FlightSearchResult, FlightJourney } from '../types/flight';
+import {
+  BookingRequestPayload,
+  Flight,
+  FlightJourney,
+  FlightSearchResponse,
+  FlightSearchResult,
+  SearchParams
+} from '../types/flight';
 
 const convertToFlight = (result: FlightSearchResult): Flight => {
   const departureDate = new Date(result.departureTime);
@@ -97,52 +104,29 @@ export const searchFlights = async (params: SearchParams, page: number = 0, page
   }
 };
 
-export const bookFlight = async (bookingDetails: BookingDetails): Promise<{ success: boolean; bookingReference: string }> => {
-  // Simulate booking API call
-  await new Promise(resolve => setTimeout(resolve, 1500));
-
-  const bookingReference = `CR${Date.now().toString().slice(-6)}`;
-  return { success: true, bookingReference };
-};
-
-export const processPayment = async (paymentDetails: PaymentDetails, amount: number): Promise<{ success: boolean; transactionId: string }> => {
-  // Simulate payment API call
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Mock payment validation
-  if (paymentDetails.cardNumber.length < 16) {
-    throw new Error('Invalid card number');
-  }
-  
-  console.log('Processing payment for amount:', amount);
-  
-  const transactionId = `TXN${Date.now().toString().slice(-8)}`;
-  return { success: true, transactionId };
-};
-
-export const getFlightDetails = async (flightIds: string[]): Promise<Flight> => {
+export const bookFlight = async (payload: BookingRequestPayload): Promise<{ success: boolean; bookingReference: string }> => {
   try {
-    const url = `http://0.0.0.0:8084/search/getDetails`;
-    const response = await fetch(url, {
+    const response = await fetch('http://0.0.0.0:8080/bookings', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(flightIds),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const flightDetails: Flight = await response.json();
-    return flightDetails;
+    const result = await response.json();
+    const bookingReference = result.bookingReference || `CR${Date.now().toString().slice(-6)}`;
+    
+    return { success: true, bookingReference };
   } catch (error) {
-    console.error('Error fetching flight details:', error);
-    throw error;
+    console.error('Booking API call failed:', error);
+    throw new Error('Booking failed. Please try again.');
   }
 };
-
 export const getFlightJourney = async (flightIds: string[]): Promise<FlightJourney> => {
   try {
     const url = `http://0.0.0.0:8084/search/getDetails`;
@@ -166,7 +150,7 @@ export const getFlightJourney = async (flightIds: string[]): Promise<FlightJourn
   }
 };
 
-export const uploadFlightSheet = async (file: File): Promise<{ success: boolean; processed: number }> => {
+export const uploadFlightSheet = async (_file: File): Promise<{ success: boolean; processed: number }> => {
   // Simulate file processing
   await new Promise(resolve => setTimeout(resolve, 3000));
   

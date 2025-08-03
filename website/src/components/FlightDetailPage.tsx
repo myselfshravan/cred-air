@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {ArrowLeft, Calendar, Mail, Phone, User, Plus, Minus} from 'lucide-react';
-import {FlightJourney, Passenger, SearchParams} from '../types/flight';
+import {FlightJourney, PassengerData, SearchParams} from '../types/flight';
 import {FlightTimelineView} from './FlightTimelineView';
 import {PriceBreakdown} from './PriceBreakdown';
 
@@ -8,7 +8,7 @@ interface FlightDetailPageProps {
   flightJourney: FlightJourney;
   searchParams?: SearchParams;
   onBack: () => void;
-  onContinueToPayment: (passengers: Passenger[]) => void;
+  onContinueToPayment: (passengers: PassengerData[]) => void;
 }
 
 export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
@@ -22,7 +22,7 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
   const initialPassengerCount = requestedPassengers;
   
   const [currentPassengerCount, setCurrentPassengerCount] = useState(initialPassengerCount);
-  const [passengers, setPassengers] = useState<Passenger[]>(
+  const [passengers, setPassengers] = useState<PassengerData[]>(
     Array.from({ length: initialPassengerCount }, (_, i) => ({
       id: `passenger-${i}`,
       title: 'Mr',
@@ -34,7 +34,7 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
     }))
   );
 
-  const handlePassengerChange = (index: number, field: keyof Passenger, value: string) => {
+  const handlePassengerChange = (index: number, field: keyof PassengerData, value: string) => {
     setPassengers(prev => prev.map((passenger, i) => 
       i === index ? { ...passenger, [field]: value } : passenger
     ));
@@ -42,7 +42,7 @@ export const FlightDetailPage: React.FC<FlightDetailPageProps> = ({
 
   const handleAddPassenger = () => {
     const newPassengerIndex = currentPassengerCount;
-    const newPassenger: Passenger = {
+    const newPassenger: PassengerData = {
       id: `passenger-${newPassengerIndex}`,
       title: 'Mr',
       firstName: '',

@@ -16,7 +16,6 @@ function AppContent() {
         <Route path="/" element={<SearchScreen currentView={currentView} onViewChange={setCurrentView} />} />
         <Route path="/results" element={<ResultsScreen />} />
         <Route path="/flight-details" element={<FlightDetailsScreen />} />
-        <Route path="/payment" element={<PaymentScreen />} />
         <Route path="/confirmation" element={<ConfirmationScreen />} />
       </Routes>
     </div>
