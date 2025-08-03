@@ -2,14 +2,23 @@ package com.credair.airline.resource
 
 import com.credair.core.manager.AirlineManager
 import com.credair.core.model.Airline
-import javax.ws.rs.*
+import jakarta.inject.Inject
+import javax.ws.rs.Consumes
+import javax.ws.rs.DELETE
+import javax.ws.rs.GET
+import javax.ws.rs.POST
+import javax.ws.rs.PUT
+import javax.ws.rs.Path
+import javax.ws.rs.PathParam
+import javax.ws.rs.Produces
+import javax.ws.rs.QueryParam
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 
 @Path("/airlines")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-class AirlineResource constructor(private val airlineManager: AirlineManager) {
+class AirlineResource @Inject constructor(private val airlineManager: AirlineManager) {
 
     @GET
     fun getAllAirlines(@QueryParam("active") active: Boolean?): Response {

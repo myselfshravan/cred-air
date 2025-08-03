@@ -1,5 +1,6 @@
 package com.credair.core.util
 
+import org.slf4j.LoggerFactory
 import java.net.InetAddress
 import java.security.MessageDigest
 import java.time.Instant
@@ -10,6 +11,8 @@ enum class IdType(val prefix: String) {
 }
 
 object SnowflakeIdGenerator {
+
+    private val logger = LoggerFactory.getLogger(SnowflakeIdGenerator::class.java)
 
     // --- Configuration ---
     private const val WORKER_ID_BITS = 10L
@@ -29,16 +32,26 @@ object SnowflakeIdGenerator {
             val host = InetAddress.getLocalHost().canonicalHostName
             val hashBytes = MessageDigest.getInstance("MD5").digest(host.toByteArray())
             val maxWorkerId = -1L xor (-1L shl WORKER_ID_BITS.toInt())
-            ((hashBytes[0].toLong() and 0xFF) or ((hashBytes[1].toLong() and 0xFF) shl 8)) and maxWorkerId
+            val id = ((hashBytes[0].toLong() and 0xFF) or ((hashBytes[1].toLong() and 0xFF) shl 8)) and maxWorkerId
+            logger.info("Initialized Snowflake worker ID: {} for host: {}", id, host)
+            id
         } catch (e: Exception) {
-            System.err.println("Failed to determine host ID. Using a random fallback.")
-            (System.currentTimeMillis() % 1024).toLong()
+            val fallbackId = (System.currentTimeMillis() % 1024).toLong()
+            logger.warn("Failed to determine host ID, using fallback: {}", fallbackId, e)
+            fallbackId
         }
     }
 
     // --- Public Generation Function ---
     fun generate(type: IdType): String {
-        return "${type.prefix}-${generateNumericId()}"
+        try {
+            val id = "${type.prefix}-${generateNumericId()}"
+            logger.debug("Generated ID: {} for type: {}", id, type.prefix)
+            return id
+        } catch (e: Exception) {
+            logger.error("Failed to generate ID for type: {}", type.prefix, e)
+            throw RuntimeException("ID generation failed: ${e.message}", e)
+        }
     }
 
     // --- Core Logic ---
@@ -46,12 +59,16 @@ object SnowflakeIdGenerator {
         var timestamp = Instant.now().toEpochMilli()
 
         if (timestamp < lastTimestamp) {
-            throw IllegalStateException("Clock moved backward.")
+            logger.error("Clock moved backward. Last: {}, Current: {}", lastTimestamp, timestamp)
+            throw IllegalStateException("Clock moved backward. Last: $lastTimestamp, Current: $timestamp")
         }
 
         if (timestamp == lastTimestamp) {
             sequence = (sequence + 1) and MAX_SEQUENCE
-            if (sequence == 0L) timestamp = waitForNextMillis(lastTimestamp)
+            if (sequence == 0L) {
+                logger.debug("Sequence exhausted, waiting for next millisecond")
+                timestamp = waitForNextMillis(lastTimestamp)
+            }
         } else {
             sequence = 0L
         }

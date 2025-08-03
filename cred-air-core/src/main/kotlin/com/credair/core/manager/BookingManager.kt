@@ -19,6 +19,7 @@ import com.credair.core.payment.PaymentProvider
 import com.credair.core.repository.BookingRepository
 import com.google.inject.Inject
 import com.google.inject.Singleton
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -33,31 +34,54 @@ class BookingManager @Inject constructor(
     private val airlineIntegrationManager: AirlineIntegrationManager
 ) {
 
+    companion object {
+        private val logger = LoggerFactory.getLogger(BookingManager::class.java)
+    }
+
     suspend fun createBookingFromPayload(payload: BookingRequestPayload): BookingResult {
-        validateBookingPayload(payload)
-        validateFlightsAvailability(payload)
-        
-        // 1. Create all booking data in a single transaction
-        val bookingData = bookingRepository.createBookingInTransaction(payload)
-        
-        // 2. Process airline reservations (external service calls)
-        val reservations = processAirlineReservations(bookingData.flightBookings, payload.passengerData)
-        
-        // 3. Create payment session
-        val paymentIntent = createPaymentSession(bookingData.mainBooking, payload.totalPrice)
-        
-        // 4. Update main booking with payment intent ID
-        val updatedMainBooking = bookingData.mainBooking.copy(
-            paymentTransactionId = paymentIntent.id
-        )
-        bookingDao.update(updatedMainBooking)
-        
-        return BookingResult(
-            updatedMainBooking,
-            bookingData.flightBookings,
-            bookingData.passengers,
-            paymentIntent
-        )
+        logger.info("Creating booking for {} passengers with {} flights", payload.passengerCount, payload.flightIds.size)
+        try {
+            validateBookingPayload(payload)
+            validateFlightsAvailability(payload)
+            
+            // 1. Create all booking data in a single transaction
+            logger.debug("Creating booking data in transaction")
+            val bookingData = bookingRepository.createBookingInTransaction(payload)
+            logger.info("Created main booking with reference: {}", bookingData.mainBooking.bookingReference)
+            
+            // 2. Process airline reservations (external service calls)
+            logger.debug("Processing airline reservations")
+            val reservations = processAirlineReservations(bookingData.flightBookings, payload.passengerData)
+            
+            // 3. Create payment session
+            logger.debug("Creating payment session")
+            val paymentIntent = createPaymentSession(bookingData.mainBooking, payload.totalPrice)
+            
+            // 4. Update main booking with payment intent ID
+            val updatedMainBooking = bookingData.mainBooking.copy(
+                paymentTransactionId = paymentIntent.id
+            )
+            bookingDao.update(updatedMainBooking)
+            
+            logger.info("Successfully created booking with reference: {} and payment intent: {}", 
+                updatedMainBooking.bookingReference, paymentIntent.id)
+            
+            return BookingResult(
+                updatedMainBooking,
+                bookingData.flightBookings,
+                bookingData.passengers,
+                paymentIntent
+            )
+        } catch (e: IllegalArgumentException) {
+            logger.warn("Validation failed for booking creation: {}", e.message)
+            throw e
+        } catch (e: IllegalStateException) {
+            logger.warn("Business rule violation for booking creation: {}", e.message)
+            throw e
+        } catch (e: Exception) {
+            logger.error("Unexpected error creating booking for {} passengers", payload.passengerCount, e)
+            throw RuntimeException("Failed to create booking: ${e.message}", e)
+        }
     }
 
     fun getBookingById(id: Long): Booking {
@@ -83,29 +107,46 @@ class BookingManager @Inject constructor(
     }
 
     fun processPayment(bookingId: Long, paymentMethod: String): Booking {
-        val booking = getBookingById(bookingId)
-        
-        if (booking.paymentStatus == PaymentStatus.PAID) {
-            throw IllegalStateException("Booking is already paid")
-        }
-        
-        if (booking.bookingStatus == BookingStatus.CANCELLED) {
-            throw IllegalStateException("Cannot process payment for cancelled booking")
-        }
-        
-        val paymentSuccessful = processPaymentExternal(booking, paymentMethod)
-        
-        if (paymentSuccessful) {
-            bookingDao.updatePaymentStatus(bookingId, PaymentStatus.PAID)
-            if (booking.bookingStatus == BookingStatus.PENDING) {
-                bookingDao.updateBookingStatus(bookingId, BookingStatus.CONFIRMED)
+        logger.info("Processing payment for booking: {} with method: {}", bookingId, paymentMethod)
+        try {
+            val booking = getBookingById(bookingId)
+            
+            if (booking.paymentStatus == PaymentStatus.PAID) {
+                logger.warn("Attempt to process payment for already paid booking: {}", bookingId)
+                throw IllegalStateException("Booking is already paid")
             }
-        } else {
-            bookingDao.updatePaymentStatus(bookingId, PaymentStatus.FAILED)
-            throw IllegalStateException("Payment processing failed")
+            
+            if (booking.bookingStatus == BookingStatus.CANCELLED) {
+                logger.warn("Attempt to process payment for cancelled booking: {}", bookingId)
+                throw IllegalStateException("Cannot process payment for cancelled booking")
+            }
+            
+            val paymentSuccessful = processPaymentExternal(booking, paymentMethod)
+            
+            if (paymentSuccessful) {
+                logger.info("Payment successful for booking: {}", bookingId)
+                bookingDao.updatePaymentStatus(bookingId, PaymentStatus.PAID)
+                if (booking.bookingStatus == BookingStatus.PENDING) {
+                    bookingDao.updateBookingStatus(bookingId, BookingStatus.CONFIRMED)
+                    logger.info("Booking status updated to CONFIRMED for booking: {}", bookingId)
+                }
+            } else {
+                logger.warn("Payment failed for booking: {}", bookingId)
+                bookingDao.updatePaymentStatus(bookingId, PaymentStatus.FAILED)
+                throw IllegalStateException("Payment processing failed")
+            }
+            
+            return getBookingById(bookingId)
+        } catch (e: IllegalArgumentException) {
+            logger.warn("Invalid booking for payment processing: {}", e.message)
+            throw e
+        } catch (e: IllegalStateException) {
+            logger.warn("Payment processing error for booking {}: {}", bookingId, e.message)
+            throw e
+        } catch (e: Exception) {
+            logger.error("Unexpected error processing payment for booking: {}", bookingId, e)
+            throw RuntimeException("Failed to process payment: ${e.message}", e)
         }
-        
-        return getBookingById(bookingId)
     }
 
     private fun validateSeatAvailability(flight: Flight, requestedSeats: Int) {
@@ -258,7 +299,15 @@ class BookingManager @Inject constructor(
         mainBooking: Booking,
         totalPrice: BigDecimal
     ): PaymentProvider.PaymentIntent {
-        val bookingForPayment = mainBooking.copy(totalPrice = totalPrice)
-        return paymentProvider.createPaymentIntent(bookingForPayment)
+        logger.debug("Creating payment session for booking: {} with amount: {}", mainBooking.bookingReference, totalPrice)
+        try {
+            val bookingForPayment = mainBooking.copy(totalPrice = totalPrice)
+            val paymentIntent = paymentProvider.createPaymentIntent(bookingForPayment)
+            logger.info("Created payment intent: {} for booking: {}", paymentIntent.id, mainBooking.bookingReference)
+            return paymentIntent
+        } catch (e: Exception) {
+            logger.error("Failed to create payment session for booking: {}", mainBooking.bookingReference, e)
+            throw RuntimeException("Failed to create payment session: ${e.message}", e)
+        }
     }
 }
