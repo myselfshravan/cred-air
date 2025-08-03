@@ -6,10 +6,6 @@ server:
     - type: http
       port: 8081
 
-razorpay-secret:
-  key-id: rzp_test_aAQrXOzUsjeNME
-  key-secret: ERvXuSqHZ8g7ReaGWV3AYkjL
-
 logging:
   level: INFO
   loggers:
