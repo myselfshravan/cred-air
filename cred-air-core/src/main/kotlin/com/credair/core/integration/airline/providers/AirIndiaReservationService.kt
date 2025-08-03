@@ -11,7 +11,7 @@ import com.google.inject.Singleton
 @Singleton
 class AirIndiaReservationService : AirlineReservationService {
     
-    override fun softReserve(request: ReservationRequest): ReservationResponse {
+    override suspend fun softReserve(request: ReservationRequest): ReservationResponse {
         return try {
             val confirmationCode = generateConfirmationCode("DL")
             val pnr = generatePNR()
@@ -30,7 +30,7 @@ class AirIndiaReservationService : AirlineReservationService {
         }
     }
     
-    override fun confirmReservation(airlineConfirmationCode: String, pnr: String): ReservationResponse {
+    override suspend fun confirmReservation(airlineConfirmationCode: String, pnr: String): ReservationResponse {
         return try {
             ReservationResponse(
                 success = true,
@@ -45,7 +45,7 @@ class AirIndiaReservationService : AirlineReservationService {
         }
     }
     
-    override fun cancelReservation(request: CancellationRequest): CancellationResponse {
+    override suspend fun cancelReservation(request: CancellationRequest): CancellationResponse {
         return try {
             CancellationResponse(
                 success = true,
@@ -60,7 +60,7 @@ class AirIndiaReservationService : AirlineReservationService {
         }
     }
     
-    override fun checkReservationStatus(airlineConfirmationCode: String, pnr: String): ReservationResponse {
+    override suspend fun checkReservationStatus(airlineConfirmationCode: String, pnr: String): ReservationResponse {
         return ReservationResponse(
             success = true,
             airlineConfirmationCode = airlineConfirmationCode,
@@ -68,12 +68,10 @@ class AirIndiaReservationService : AirlineReservationService {
         )
     }
     
-    override fun getAvailableSeats(flightId: String): List<String> {
+    override suspend fun getAvailableSeats(flightId: String): List<String> {
         return listOf("15A", "15B", "15C", "16A", "16B", "16C", "17A", "17B", "17C")
     }
-    
-    override fun getSupportedAirline(): String = "Delta Airlines"
-    
+
     private fun generateConfirmationCode(airlinePrefix: String): String {
         val randomSuffix = (1000..9999).random()
         return "$airlinePrefix$randomSuffix"

@@ -1,19 +1,15 @@
 package com.credair.core.integration.airline
 
-import com.credair.core.model.Booking
-import com.credair.core.model.Flight
-
 interface AirlineReservationService {
     
-    fun softReserve(request: ReservationRequest): ReservationResponse
+    suspend fun softReserve(request: ReservationRequest): ReservationResponse
     
-    fun confirmReservation(airlineConfirmationCode: String, pnr: String): ReservationResponse
+    suspend fun confirmReservation(airlineConfirmationCode: String, pnr: String): ReservationResponse
     
-    fun cancelReservation(request: CancellationRequest): CancellationResponse
+    suspend fun cancelReservation(request: CancellationRequest): CancellationResponse
     
-    fun checkReservationStatus(airlineConfirmationCode: String, pnr: String): ReservationResponse
+    suspend fun checkReservationStatus(airlineConfirmationCode: String, pnr: String): ReservationResponse
     
-    fun getAvailableSeats(flightId: String): List<String>
+    suspend fun getAvailableSeats(flightId: String): List<String>
     
-    fun getSupportedAirline(): String
 }
