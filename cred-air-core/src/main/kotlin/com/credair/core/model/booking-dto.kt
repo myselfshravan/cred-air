@@ -1,29 +1,31 @@
 package com.credair.core.model
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.math.BigDecimal
 
-data class BookingRequestPayload(
-    val flightIds: List<String>,
-    val passengerData: List<PassengerData>,
-    val flightPrices: List<FlightPricePayload>,
-    val totalPrice: BigDecimal,
-    val passengerCount: Int
+data class BookingRequestPayload @JsonCreator constructor(
+    @JsonProperty("flightIds") val flightIds: List<String>,
+    @JsonProperty("passengerData") val passengerData: List<PassengerData>,
+    @JsonProperty("flightPrices") val flightPrices: List<FlightPricePayload>,
+    @JsonProperty("totalPrice") val totalPrice: BigDecimal,
+    @JsonProperty("passengerCount") val passengerCount: Int
 )
 
-data class FlightPricePayload(
-    val flightId: String,
-    val price: BigDecimal,
-    val currency: String
+data class FlightPricePayload @JsonCreator constructor(
+    @JsonProperty("flightId") val flightId: String,
+    @JsonProperty("price") val price: BigDecimal,
+    @JsonProperty("currency") val currency: String
 )
 
-data class PassengerData(
-    val id: String,
-    val title: String,
-    val firstName: String,
-    val lastName: String,
-    val dateOfBirth: String,
-    val email: String,
-    val phone: String
+data class PassengerData @JsonCreator constructor(
+    @JsonProperty("id") val id: String,
+    @JsonProperty("title") val title: String,
+    @JsonProperty("firstName") val firstName: String,
+    @JsonProperty("lastName") val lastName: String,
+    @JsonProperty("dateOfBirth") val dateOfBirth: String,
+    @JsonProperty("email") val email: String,
+    @JsonProperty("phone") val phone: String
 )
 
 data class BookingResult(
