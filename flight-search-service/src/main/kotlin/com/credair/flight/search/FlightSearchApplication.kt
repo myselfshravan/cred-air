@@ -1,6 +1,7 @@
 package com.credair.flight.search
 
 import com.credair.flight.search.resource.FlightSearchResource
+import com.credair.core.exception.GlobalExceptionMapper
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
@@ -23,6 +24,11 @@ class FlightSearchApplication : Application<FlightSearchConfiguration>() {
         configureCors(environment, configuration.corsConfiguration)
         
         val injector = Guice.createInjector(FlightSearchModule())
+        
+        // Register global exception mapper
+        environment.jersey().register(GlobalExceptionMapper())
+        
+        // Register resources
         resources().forEach { resource ->
             environment.jersey()
                 .register(injector.getInstance(resource))

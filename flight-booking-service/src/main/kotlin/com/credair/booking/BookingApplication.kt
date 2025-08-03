@@ -2,6 +2,7 @@ package com.credair.booking
 
 import com.credair.booking.config.BookingModule
 import com.credair.booking.resource.BookingResource
+import com.credair.core.exception.GlobalExceptionMapper
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
@@ -24,6 +25,11 @@ class BookingApplication : Application<BookingConfiguration>() {
         configureCors(environment, configuration.corsConfiguration)
         
         val injector = Guice.createInjector(BookingModule())
+        
+        // Register global exception mapper
+        environment.jersey().register(GlobalExceptionMapper())
+        
+        // Register resources
         resources().forEach { resource ->
             environment.jersey()
                 .register(injector.getInstance(resource))

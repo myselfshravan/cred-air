@@ -3,6 +3,10 @@ package com.credair.core.manager
 import com.credair.core.dao.interfaces.AirlineDao
 import com.credair.core.dao.interfaces.BookingDao
 import com.credair.core.dao.interfaces.FlightDao
+import com.credair.core.exception.BusinessRuleViolationException
+import com.credair.core.exception.PaymentProcessingException
+import com.credair.core.exception.ResourceNotFoundException
+import com.credair.core.exception.ValidationException
 import com.credair.core.integration.airline.AirlineIntegrationManager
 import com.credair.core.integration.airline.PassengerInfo
 import com.credair.core.integration.airline.ReservationRequest
@@ -72,10 +76,10 @@ class BookingManager @Inject constructor(
                 bookingData.passengers,
                 paymentIntent
             )
-        } catch (e: IllegalArgumentException) {
+        } catch (e: ValidationException) {
             logger.warn("Validation failed for booking creation: {}", e.message)
             throw e
-        } catch (e: IllegalStateException) {
+        } catch (e: BusinessRuleViolationException) {
             logger.warn("Business rule violation for booking creation: {}", e.message)
             throw e
         } catch (e: Exception) {
@@ -86,14 +90,14 @@ class BookingManager @Inject constructor(
 
     fun getBookingById(id: Long): Booking {
         return bookingDao.findById(id)
-            ?: throw IllegalArgumentException("Booking with id $id not found")
+            ?: throw ResourceNotFoundException("Booking with id $id not found")
     }
 
     fun confirmBooking(bookingId: Long): Booking {
         val booking = getBookingById(bookingId)
         
         if (booking.bookingStatus !in listOf(BookingStatus.PENDING, BookingStatus.SOFT_RESERVED)) {
-            throw IllegalStateException("Only pending or soft reserved bookings can be confirmed")
+            throw BusinessRuleViolationException("Only pending or soft reserved bookings can be confirmed")
         }
         
         bookingDao.updateBookingStatus(bookingId, BookingStatus.CONFIRMED)
@@ -113,12 +117,12 @@ class BookingManager @Inject constructor(
             
             if (booking.paymentStatus == PaymentStatus.PAID) {
                 logger.warn("Attempt to process payment for already paid booking: {}", bookingId)
-                throw IllegalStateException("Booking is already paid")
+                throw BusinessRuleViolationException("Booking is already paid")
             }
             
             if (booking.bookingStatus == BookingStatus.CANCELLED) {
                 logger.warn("Attempt to process payment for cancelled booking: {}", bookingId)
-                throw IllegalStateException("Cannot process payment for cancelled booking")
+                throw BusinessRuleViolationException("Cannot process payment for cancelled booking")
             }
             
             val paymentSuccessful = processPaymentExternal(booking, paymentMethod)
@@ -133,14 +137,14 @@ class BookingManager @Inject constructor(
             } else {
                 logger.warn("Payment failed for booking: {}", bookingId)
                 bookingDao.updatePaymentStatus(bookingId, PaymentStatus.FAILED)
-                throw IllegalStateException("Payment processing failed")
+                throw PaymentProcessingException("Payment processing failed")
             }
             
             return getBookingById(bookingId)
-        } catch (e: IllegalArgumentException) {
+        } catch (e: ResourceNotFoundException) {
             logger.warn("Invalid booking for payment processing: {}", e.message)
             throw e
-        } catch (e: IllegalStateException) {
+        } catch (e: PaymentProcessingException) {
             logger.warn("Payment processing error for booking {}: {}", bookingId, e.message)
             throw e
         } catch (e: Exception) {
@@ -151,7 +155,7 @@ class BookingManager @Inject constructor(
 
     private fun validateSeatAvailability(flight: Flight, requestedSeats: Int) {
         if (flight.availableSeats < requestedSeats) {
-            throw IllegalStateException(
+            throw BusinessRuleViolationException(
                 "Not enough seats available. Requested: $requestedSeats, Available: ${flight.availableSeats}"
             )
         }
@@ -164,48 +168,48 @@ class BookingManager @Inject constructor(
     private fun validateFlightsAvailability(payload: BookingRequestPayload) {
         payload.flightIds.forEach { flightId ->
             val flightIdLong = flightId.toLongOrNull()
-                ?: throw IllegalArgumentException("Invalid flight ID: $flightId")
+                ?: throw ValidationException("Invalid flight ID: $flightId")
                 
             val flight = flightDao.findById(flightIdLong)
-                ?: throw IllegalArgumentException("Flight with id $flightId not found")
+                ?: throw ResourceNotFoundException("Flight with id $flightId not found")
             
             if (!flight.isAvailable) {
-                throw IllegalStateException("Flight $flightId is not available for booking")
+                throw BusinessRuleViolationException("Flight $flightId is not available for booking")
             }
             
             validateSeatAvailability(flight, payload.passengerCount)
             
             val flightPrice = payload.flightPrices.find { it.flightId == flightId }
-                ?: throw IllegalArgumentException("Price not found for flight $flightId")
+                ?: throw ValidationException("Price not found for flight $flightId")
             
             validateFlightPrice(flight, flightPrice)
         }
     }
 
     private fun validateBookingPayload(payload: BookingRequestPayload) {
-        require(payload.flightIds.isNotEmpty()) { "At least one flight ID must be provided" }
-        require(payload.passengerData.isNotEmpty()) { "At least one passenger must be provided" }
-        require(payload.passengerCount > 0) { "Passenger count must be greater than 0" }
-        require(payload.passengerCount <= 9) { "Maximum 9 passengers per booking" }
-        require(payload.totalPrice > BigDecimal.ZERO) { "Total price must be greater than 0" }
+        if (payload.flightIds.isEmpty()) throw ValidationException("At least one flight ID must be provided")
+        if (payload.passengerData.isEmpty()) throw ValidationException("At least one passenger must be provided")
+        if (payload.passengerCount <= 0) throw ValidationException("Passenger count must be greater than 0")
+        if (payload.passengerCount > 9) throw ValidationException("Maximum 9 passengers per booking")
+        if (payload.totalPrice <= BigDecimal.ZERO) throw ValidationException("Total price must be greater than 0")
         
         payload.passengerData.forEach { passenger ->
             validatePassengerData(passenger)
         }
         
         payload.flightPrices.forEach { flightPrice ->
-            require(flightPrice.price > BigDecimal.ZERO) { "Flight price must be greater than 0" }
-            require(flightPrice.currency.isNotBlank()) { "Currency cannot be blank" }
+            if (flightPrice.price <= BigDecimal.ZERO) throw ValidationException("Flight price must be greater than 0")
+            if (flightPrice.currency.isBlank()) throw ValidationException("Currency cannot be blank")
         }
         
         val providedFlightIds = payload.flightPrices.map { it.flightId }.toSet()
         val requestedFlightIds = payload.flightIds.toSet()
-        require(providedFlightIds == requestedFlightIds) { "Flight prices must be provided for all requested flights" }
+        if (providedFlightIds != requestedFlightIds) throw ValidationException("Flight prices must be provided for all requested flights")
         
         val expectedTotal = payload.flightPrices.sumOf { it.price.multiply(BigDecimal(payload.passengerCount)) }
-        require(payload.totalPrice.compareTo(expectedTotal) == 0) { 
-            "Total price ${payload.totalPrice} does not match sum of flight prices $expectedTotal" 
-        }
+        if (payload.totalPrice.compareTo(expectedTotal) != 0) throw ValidationException(
+            "Total price ${payload.totalPrice} does not match sum of flight prices $expectedTotal"
+        )
     }
 
     private fun validatePassengerData(passenger: PassengerData) {

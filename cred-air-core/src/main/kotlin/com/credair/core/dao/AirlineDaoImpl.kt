@@ -1,6 +1,10 @@
 package com.credair.core.dao
 
 import com.credair.core.dao.interfaces.AirlineDao
+import com.credair.core.exception.BusinessRuleViolationException
+import com.credair.core.exception.DatabaseException
+import com.credair.core.exception.ResourceNotFoundException
+import com.credair.core.exception.ValidationException
 import com.credair.core.model.Airline
 import com.google.inject.Inject
 import com.google.inject.Singleton
@@ -45,10 +49,10 @@ class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
             }
         } catch (e: SQLException) {
             logger.error("Database error finding airline by id: {}", id, e)
-            throw RuntimeException("Database error retrieving airline", e)
+            throw DatabaseException("Database error retrieving airline", e)
         } catch (e: Exception) {
             logger.error("Unexpected error finding airline by id: {}", id, e)
-            throw RuntimeException("Error retrieving airline", e)
+            throw DatabaseException("Error retrieving airline", e)
         }
     }
 
@@ -62,10 +66,10 @@ class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
             }
         } catch (e: SQLException) {
             logger.error("Database error finding all airlines", e)
-            throw RuntimeException("Database error retrieving airlines", e)
+            throw DatabaseException("Database error retrieving airlines", e)
         } catch (e: Exception) {
             logger.error("Unexpected error finding all airlines", e)
-            throw RuntimeException("Error retrieving airlines", e)
+            throw DatabaseException("Error retrieving airlines", e)
         }
     }
 
@@ -96,13 +100,13 @@ class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
         } catch (e: SQLException) {
             if (e.sqlState == "23505") { // Unique constraint violation
                 logger.warn("Duplicate airline code attempted: {}", entity.code)
-                throw IllegalArgumentException("Airline with code ${entity.code} already exists")
+                throw ValidationException("Airline with code ${entity.code} already exists")
             }
             logger.error("Database error saving airline with code: {}", entity.code, e)
-            throw RuntimeException("Database error saving airline", e)
+            throw DatabaseException("Database error saving airline", e)
         } catch (e: Exception) {
             logger.error("Unexpected error saving airline with code: {}", entity.code, e)
-            throw RuntimeException("Error saving airline", e)
+            throw DatabaseException("Error saving airline", e)
         }
     }
 
@@ -129,7 +133,7 @@ class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
             }
             if (rowsUpdated == 0) {
                 logger.warn("No airline found to update with id: {}", entity.id)
-                throw IllegalArgumentException("Airline with id ${entity.id} not found")
+                throw ResourceNotFoundException("Airline with id ${entity.id} not found")
             }
             val updatedAirline = entity.copy(updatedAt = now)
             logger.info("Successfully updated airline with id: {}", entity.id)
@@ -137,15 +141,15 @@ class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
         } catch (e: SQLException) {
             if (e.sqlState == "23505") { // Unique constraint violation
                 logger.warn("Duplicate airline code attempted during update: {}", entity.code)
-                throw IllegalArgumentException("Airline with code ${entity.code} already exists")
+                throw ValidationException("Airline with code ${entity.code} already exists")
             }
             logger.error("Database error updating airline with id: {}", entity.id, e)
-            throw RuntimeException("Database error updating airline", e)
-        } catch (e: IllegalArgumentException) {
+            throw DatabaseException("Database error updating airline", e)
+        } catch (e: ResourceNotFoundException) {
             throw e
         } catch (e: Exception) {
             logger.error("Unexpected error updating airline with id: {}", entity.id, e)
-            throw RuntimeException("Error updating airline", e)
+            throw DatabaseException("Error updating airline", e)
         }
     }
 
@@ -167,13 +171,13 @@ class AirlineDaoImpl @Inject constructor(private val jdbi: Jdbi) : AirlineDao {
         } catch (e: SQLException) {
             if (e.sqlState == "23503") { // Foreign key constraint violation
                 logger.warn("Cannot delete airline with id {} - referenced by other entities", id)
-                throw IllegalStateException("Cannot delete airline - it is referenced by flights or bookings")
+                throw BusinessRuleViolationException("Cannot delete airline - it is referenced by flights or bookings")
             }
             logger.error("Database error deleting airline with id: {}", id, e)
-            throw RuntimeException("Database error deleting airline", e)
+            throw DatabaseException("Database error deleting airline", e)
         } catch (e: Exception) {
             logger.error("Unexpected error deleting airline with id: {}", id, e)
-            throw RuntimeException("Error deleting airline", e)
+            throw DatabaseException("Error deleting airline", e)
         }
     }
 

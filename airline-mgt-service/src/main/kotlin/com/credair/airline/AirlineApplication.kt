@@ -3,6 +3,7 @@ package com.credair.airline
 import com.credair.airline.config.AirlineModule
 import com.credair.airline.resource.AirlineResource
 import com.credair.airline.resource.WebhookResource
+import com.credair.core.exception.GlobalExceptionMapper
 import com.google.inject.Guice
 import io.dropwizard.Configuration
 import io.dropwizard.setup.Bootstrap
@@ -18,6 +19,11 @@ class AirlineManagementApplication : Application<AirlineConfiguration>() {
 
     override fun run(configuration: AirlineConfiguration, environment: Environment) {
         val injector = Guice.createInjector(AirlineModule())
+        
+        // Register global exception mapper
+        environment.jersey().register(GlobalExceptionMapper())
+        
+        // Register resources
         resources().forEach { resource ->
             environment.jersey()
                 .register(injector.getInstance(resource))

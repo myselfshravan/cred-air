@@ -1,5 +1,6 @@
 package com.credair.core.payment
 
+import com.credair.core.exception.PaymentProcessingException
 import com.credair.core.model.Booking
 import com.google.inject.Inject
 import com.google.inject.Singleton
@@ -67,7 +68,7 @@ class StripePaymentManager @Inject constructor() : PaymentProvider {
             )
         } catch (e: Exception) {
             logger.error("Unexpected error creating payment intent for booking: {}", booking.bookingReference, e)
-            throw RuntimeException("Failed to create payment intent: ${e.message}", e)
+            throw PaymentProcessingException("Failed to create payment intent: ${e.message}", e)
         }
     }
     

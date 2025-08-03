@@ -1,6 +1,8 @@
 package com.credair.core.manager
 
 import com.credair.core.dao.interfaces.AirlineDao
+import com.credair.core.exception.ResourceNotFoundException
+import com.credair.core.exception.ValidationException
 import com.credair.core.model.Airline
 import com.google.inject.Inject
 import com.google.inject.Singleton
@@ -28,7 +30,7 @@ class AirlineManager @Inject constructor(private val airlineDao: AirlineDao) {
             val savedAirline = airlineDao.save(airlineToCreate)
             logger.info("Successfully created airline with id: {} and code: {}", savedAirline.id, savedAirline.code)
             return savedAirline
-        } catch (e: IllegalArgumentException) {
+        } catch (e: ValidationException) {
             logger.warn("Validation failed for airline creation: {}", e.message)
             throw e
         } catch (e: Exception) {
@@ -57,7 +59,7 @@ class AirlineManager @Inject constructor(private val airlineDao: AirlineDao) {
             val updatedAirline = airlineDao.update(airlineToUpdate)
             logger.info("Successfully updated airline with id: {}", id)
             return updatedAirline
-        } catch (e: IllegalArgumentException) {
+        } catch (e: ValidationException) {
             logger.warn("Validation failed for airline update with id {}: {}", id, e.message)
             throw e
         } catch (e: Exception) {
@@ -70,8 +72,8 @@ class AirlineManager @Inject constructor(private val airlineDao: AirlineDao) {
         logger.debug("Retrieving airline with id: {}", id)
         try {
             return airlineDao.findById(id) 
-                ?: throw IllegalArgumentException("Airline with id $id not found")
-        } catch (e: IllegalArgumentException) {
+                ?: throw ResourceNotFoundException("Airline with id $id not found")
+        } catch (e: ResourceNotFoundException) {
             logger.warn("Airline not found with id: {}", id)
             throw e
         } catch (e: Exception) {
@@ -126,7 +128,7 @@ class AirlineManager @Inject constructor(private val airlineDao: AirlineDao) {
                 logger.warn("Failed to delete airline with id: {} - no rows affected", id)
             }
             return result
-        } catch (e: IllegalArgumentException) {
+        } catch (e: ResourceNotFoundException) {
             logger.warn("Cannot delete airline - not found with id: {}", id)
             throw e
         } catch (e: Exception) {
@@ -136,11 +138,11 @@ class AirlineManager @Inject constructor(private val airlineDao: AirlineDao) {
     }
 
     private fun validateAirline(airline: Airline) {
-        require(airline.name.isNotBlank()) { "Airline name cannot be blank" }
-        require(airline.code.isNotBlank()) { "Airline code cannot be blank" }
-        require(airline.code.length in 2..3) { "Airline code must be 2-3 characters" }
-        require(airline.country.isNotBlank()) { "Country cannot be blank" }
-        require(airline.code.matches(Regex("^[A-Z]+$"))) { "Airline code must contain only uppercase letters" }
+        if (airline.name.isBlank()) throw ValidationException("Airline name cannot be blank")
+        if (airline.code.isBlank()) throw ValidationException("Airline code cannot be blank")
+        if (airline.code.length !in 2..3) throw ValidationException("Airline code must be 2-3 characters")
+        if (airline.country.isBlank()) throw ValidationException("Country cannot be blank")
+        if (!airline.code.matches(Regex("^[A-Z]+$"))) throw ValidationException("Airline code must contain only uppercase letters")
     }
 
     private fun validateUniqueCode(code: String) {
@@ -149,9 +151,9 @@ class AirlineManager @Inject constructor(private val airlineDao: AirlineDao) {
             val existingAirline = airlineDao.findByCode(code)
             if (existingAirline != null) {
                 logger.warn("Duplicate airline code detected: {}", code)
-                throw IllegalArgumentException("Airline with code $code already exists")
+                throw ValidationException("Airline with code $code already exists")
             }
-        } catch (e: IllegalArgumentException) {
+        } catch (e: ValidationException) {
             throw e
         } catch (e: Exception) {
             logger.error("Error validating airline code uniqueness for: {}", code, e)
