@@ -122,19 +122,19 @@ export const processPayment = async (paymentDetails: PaymentDetails, amount: num
 
 export const getFlightDetails = async (flightIds: number[]): Promise<Flight> => {
   try {
-    const url = `http://0.0.0.0:8084/getDetails`;
+    const url = `http://0.0.0.0:8084/search/getDetails`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ flightIds }),
+      body: JSON.stringify(flightIds),
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const flightDetails: Flight = await response.json();
     return flightDetails;
   } catch (error) {

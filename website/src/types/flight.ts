@@ -20,6 +20,50 @@ export interface FlightSearchResult {
   flightIds: number[];
 }
 
+export interface FlightJourney {
+  totalDuration: string;
+  totalTimeInAir: string;
+  price: FlightPrice;
+  segments: FlightSegment[];
+  layovers: Layover[];
+  totalStops: number;
+  flightType: 'DIRECT' | 'ONE_STOP' | 'MULTIPLE_STOPS';
+}
+
+export interface FlightSegment {
+  airline: FlightAirline;
+  departure: FlightStop;
+  arrival: FlightStop;
+  segmentDuration: string;
+  price: FlightPrice;
+}
+
+export interface Layover {
+  airportCode: string;
+  airportName: string;
+  duration: string;
+  formattedLayover: string;
+}
+
+export interface FlightAirline {
+  name: string;
+  logoUrl: string;
+}
+
+export interface FlightStop {
+  departsAt: number;
+  arrivesAt: number;
+  airportCode: string;
+  city: string;
+}
+
+export interface FlightPrice {
+  amount: number;
+  currency: string;
+  perPerson: boolean;
+  formattedPrice: string;
+}
+
 export interface FlightSearchResponse {
   results: FlightSearchResult[];
   totalResults: number;
