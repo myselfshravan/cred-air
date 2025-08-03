@@ -28,8 +28,7 @@ class StripePaymentManager @Inject constructor() : PaymentProvider {
             .setCurrency(booking.currency.lowercase())
             .putAllMetadata(mapOf(
                 "booking_id" to booking.id.toString(),
-                "booking_reference" to booking.bookingReference,
-                "passenger_email" to booking.passengerEmail
+                "booking_reference" to booking.bookingReference
             ))
             .setAutomaticPaymentMethods(
                 PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
