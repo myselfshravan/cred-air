@@ -2,116 +2,119 @@ package com.credair.core.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.sql.Timestamp
+import java.time.LocalDate
 
 data class Booking(
     @JsonProperty("id")
     val id: Long? = null,
-
+    
     @JsonProperty("booking_reference")
     val bookingReference: String,
-
-    @JsonProperty("flight_id")
-    val flightId: Long,
-
-    @JsonProperty("passenger_name")
-    val passengerName: String,
-
-    @JsonProperty("passenger_email")
-    val passengerEmail: String,
-
-    @JsonProperty("passenger_phone")
-    val passengerPhone: String? = null,
-
-    @JsonProperty("seat_number")
-    val seatNumber: String? = null,
-
-    @JsonProperty("number_of_seats")
-    val numberOfSeats: Int = 1,
-
+    
     @JsonProperty("total_price")
     val totalPrice: BigDecimal,
-
+    
     @JsonProperty("currency")
-    val currency: String = "USD",
-
+    val currency: String,
+    
+    @JsonProperty("passenger_count")
+    val passengerCount: Int,
+    
     @JsonProperty("booking_status")
-    val bookingStatus: BookingStatus = BookingStatus.PENDING,
-
+    val bookingStatus: String,
+    
     @JsonProperty("payment_status")
-    val paymentStatus: PaymentStatus = PaymentStatus.PENDING,
-
-    @JsonProperty("booking_date")
-    val bookingDate: LocalDateTime = LocalDateTime.now(),
-
+    val paymentStatus: String,
+    
     @JsonProperty("payment_method")
     val paymentMethod: String? = null,
-
-    @JsonProperty("special_requests")
-    val specialRequests: String? = null,
-
-    @JsonProperty("check_in_status")
-    val checkInStatus: CheckInStatus = CheckInStatus.NOT_CHECKED_IN,
-
+    
+    @JsonProperty("payment_transaction_id")
+    val paymentTransactionId: String? = null,
+    
     @JsonProperty("created_at")
-    val createdAt: LocalDateTime? = null,
-
+    val createdAt: Timestamp? = null,
+    
     @JsonProperty("updated_at")
-    val updatedAt: LocalDateTime? = null
-) {
+    val updatedAt: Timestamp? = null
+)
 
-    val isActive: Boolean
-        get() = bookingStatus in listOf(BookingStatus.CONFIRMED, BookingStatus.PENDING)
+data class FlightBooking(
+    @JsonProperty("id")
+    val id: Long? = null,
+    
+    @JsonProperty("booking_id")
+    val bookingId: Long,
+    
+    @JsonProperty("flight_id")
+    val flightId: String,
+    
+    @JsonProperty("pnr")
+    val pnr: String? = null,
+    
+    @JsonProperty("total_flight_price")
+    val totalFlightPrice: BigDecimal,
+    
+    @JsonProperty("currency")
+    val currency: String,
+    
+    @JsonProperty("passenger_count")
+    val passengerCount: Int,
+    
+    @JsonProperty("booking_class")
+    val bookingClass: String? = null,
+    
+    @JsonProperty("status")
+    val status: String,
+    
+    @JsonProperty("created_at")
+    val createdAt: Timestamp? = null,
+    
+    @JsonProperty("updated_at")
+    val updatedAt: Timestamp? = null
+)
 
-    val canBeCancelled: Boolean
-        get() = bookingStatus in listOf(BookingStatus.CONFIRMED, BookingStatus.PENDING) &&
-                bookingDate.isBefore(LocalDateTime.now().minusHours(24))
-
-    val isPaid: Boolean
-        get() = paymentStatus == PaymentStatus.PAID
-}
-
-enum class BookingStatus {
-    @JsonProperty("pending")
-    PENDING,
-
-    @JsonProperty("confirmed")
-    CONFIRMED,
-
-    @JsonProperty("cancelled")
-    CANCELLED,
-
-    @JsonProperty("completed")
-    COMPLETED,
-
-    @JsonProperty("no_show")
-    NO_SHOW
-}
-
-enum class PaymentStatus {
-    @JsonProperty("pending")
-    PENDING,
-
-    @JsonProperty("paid")
-    PAID,
-
-    @JsonProperty("failed")
-    FAILED,
-
-    @JsonProperty("refunded")
-    REFUNDED,
-
-    @JsonProperty("partially_refunded")
-    PARTIALLY_REFUNDED
-}
-
-enum class CheckInStatus {
-    @JsonProperty("not_checked_in")
-    NOT_CHECKED_IN,
-
-    @JsonProperty("checked_in")
-    CHECKED_IN,
-
-    @JsonProperty("boarding_pass_issued")
-    BOARDING_PASS_ISSUED
-}
+data class FlightPassenger(
+    @JsonProperty("id")
+    val id: Long? = null,
+    
+    @JsonProperty("flight_booking_id")
+    val flightBookingId: Long,
+    
+    @JsonProperty("passenger_external_id")
+    val passengerExternalId: String? = null,
+    
+    @JsonProperty("title")
+    val title: String? = null,
+    
+    @JsonProperty("first_name")
+    val firstName: String,
+    
+    @JsonProperty("last_name")
+    val lastName: String,
+    
+    @JsonProperty("date_of_birth")
+    val dateOfBirth: LocalDate,
+    
+    @JsonProperty("email")
+    val email: String,
+    
+    @JsonProperty("phone")
+    val phone: String? = null,
+    
+    @JsonProperty("seat_number")
+    val seatNumber: String? = null,
+    
+    @JsonProperty("ticket_number")
+    val ticketNumber: String? = null,
+    
+    @JsonProperty("individual_price")
+    val individualPrice: BigDecimal,
+    
+    @JsonProperty("created_at")
+    val createdAt: Timestamp? = null,
+    
+    @JsonProperty("updated_at")
+    val updatedAt: Timestamp? = null
+)
