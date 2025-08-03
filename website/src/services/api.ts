@@ -1,4 +1,4 @@
-import { Flight, SearchParams, BookingDetails, PaymentDetails, FlightSearchResponse, FlightSearchResult } from '../types/flight';
+import { Flight, SearchParams, BookingDetails, PaymentDetails, FlightSearchResponse, FlightSearchResult, FlightJourney } from '../types/flight';
 
 const convertToFlight = (result: FlightSearchResult): Flight => {
   const departureDate = new Date(result.departureTime);
@@ -120,7 +120,7 @@ export const processPayment = async (paymentDetails: PaymentDetails, amount: num
   return { success: true, transactionId };
 };
 
-export const getFlightDetails = async (flightIds: number[]): Promise<Flight> => {
+export const getFlightDetails = async (flightIds: string[]): Promise<Flight> => {
   try {
     const url = `http://0.0.0.0:8084/search/getDetails`;
     const response = await fetch(url, {
@@ -139,6 +139,29 @@ export const getFlightDetails = async (flightIds: number[]): Promise<Flight> => 
     return flightDetails;
   } catch (error) {
     console.error('Error fetching flight details:', error);
+    throw error;
+  }
+};
+
+export const getFlightJourney = async (flightIds: string[]): Promise<FlightJourney> => {
+  try {
+    const url = `http://0.0.0.0:8084/search/getDetails`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(flightIds),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const flightJourney: FlightJourney = await response.json();
+    return flightJourney;
+  } catch (error) {
+    console.error('Error fetching flight journey:', error);
     throw error;
   }
 };

@@ -7,17 +7,19 @@ interface BookingFormProps {
   passengerCount: number;
   onBookingComplete: (booking: BookingDetails) => void;
   onBack: () => void;
+  prefilledPassengers?: Passenger[];
 }
 
 export const BookingForm: React.FC<BookingFormProps> = ({
   flight,
   passengerCount,
   onBookingComplete,
-  onBack
+  onBack,
+  prefilledPassengers
 }) => {
-  const [step, setStep] = useState<'passengers' | 'payment'>('passengers');
+  const [step, setStep] = useState<'passengers' | 'payment'>(prefilledPassengers ? 'payment' : 'passengers');
   const [passengers, setPassengers] = useState<Passenger[]>(
-    Array.from({ length: passengerCount }, (_, i) => ({
+    prefilledPassengers || Array.from({ length: passengerCount }, (_, i) => ({
       id: `passenger-${i}`,
       title: 'Mr',
       firstName: '',

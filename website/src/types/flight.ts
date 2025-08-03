@@ -21,8 +21,8 @@ export interface FlightSearchResult {
 }
 
 export interface FlightJourney {
-  totalDuration: string;
-  totalTimeInAir: string;
+  totalDuration: number;
+  totalTimeInAir: number;
   price: FlightPrice;
   segments: FlightSegment[];
   layovers: Layover[];
@@ -34,14 +34,14 @@ export interface FlightSegment {
   airline: FlightAirline;
   departure: FlightStop;
   arrival: FlightStop;
-  segmentDuration: string;
+  segmentDuration: number;
   price: FlightPrice;
 }
 
 export interface Layover {
   airportCode: string;
   airportName: string;
-  duration: string;
+  duration: number;
   formattedLayover: string;
 }
 
@@ -106,8 +106,9 @@ export interface SearchParams {
   from: string;
   to: string;
   departDate: string;
+  returnDate?: string;
   passengers: number;
-  tripType: 'oneWay' | 'roundTrip';
+  class: 'economy' | 'business' | 'first';
 }
 
 export interface Passenger {
