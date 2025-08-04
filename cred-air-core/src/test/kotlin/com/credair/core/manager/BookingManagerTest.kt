@@ -385,6 +385,7 @@ class BookingManagerTest {
 
     private fun createValidFlight() = Flight(
         flightId = 1L,
+        externalFlightId = "AI100-DEL-BOM-20240804",
         flightNumber = "AI100",
         srcAirportCode = "DEL",
         destAirportCode = "BOM",

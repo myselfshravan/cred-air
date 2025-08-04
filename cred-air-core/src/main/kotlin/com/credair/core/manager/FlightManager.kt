@@ -30,6 +30,7 @@ class FlightManager @Inject constructor(
     }
 
     private fun validateFlightForCreation(flight: Flight) {
+        require(flight.externalFlightId.isNotBlank()) { "External flight ID cannot be blank" }
         require(flight.flightNumber.isNotBlank()) { "Flight number cannot be blank" }
         require(flight.srcAirportCode.isNotBlank()) { "Source airport code cannot be blank" }
         require(flight.destAirportCode.isNotBlank()) { "Destination airport code cannot be blank" }
@@ -41,7 +42,7 @@ class FlightManager @Inject constructor(
         require(flight.price.signum() >= 0) { "Price cannot be negative" }
         require(flight.airlineId > 0) { "Airline ID must be provided" }
         
-        val existingFlight = flightDao.findByAirlineIdAndFlightNumber(flight.airlineId, flight.flightNumber)
-        require(existingFlight == null) { "Flight with number ${flight.flightNumber} already exists for airline ${flight.airlineId}" }
+        val existingFlight = flightDao.findByAirlineIdAndExternalFlightId(flight.airlineId, flight.externalFlightId)
+        require(existingFlight == null) { "Flight with external ID ${flight.externalFlightId} already exists for airline ${flight.airlineId}" }
     }
 }

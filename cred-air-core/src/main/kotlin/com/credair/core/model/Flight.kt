@@ -9,6 +9,9 @@ data class Flight(
     @JsonProperty("flight_id")
     val flightId: Long,
 
+    @JsonProperty("external_flight_id")
+    val externalFlightId: String,
+
     @JsonProperty("flight_number")
     val flightNumber: String,
 

@@ -18,6 +18,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
     private val flightMapper = RowMapper { rs: ResultSet, _: StatementContext ->
         Flight(
             flightId = rs.getLong("flight_id"),
+            externalFlightId = rs.getString("external_flight_id"),
             flightNumber = rs.getString("flight_number"),
             srcAirportCode = rs.getString("src_airport_code"),
             destAirportCode = rs.getString("dest_airport_code"),
@@ -76,13 +77,16 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         val now = Timestamp(System.currentTimeMillis())
         val newId = jdbi.withHandle<Long, Exception> { handle ->
             handle.createUpdate("""
-                INSERT INTO flights (flight_number, src_airport_code, dest_airport_code, 
+                INSERT INTO flights (external_flight_id, flight_number, src_airport_code, dest_airport_code, 
                                    departs_at, arrives_at, price, currency, total_seats, 
-                                   available_seats, aircraft_type, active, created_at, updated_at) 
-                VALUES (:flightNumber, :srcAirportCode, :destAirportCode, 
+                                   available_seats, aircraft_type, active, created_at, updated_at, airline_id, 
+                                   source_airport, destination_airport) 
+                VALUES (:externalFlightId, :flightNumber, :srcAirportCode, :destAirportCode, 
                         :departureTime, :arrivalTime, :price, :currency, :totalSeats, 
-                        :availableSeats, :aircraftType, :active, :createdAt, :updatedAt)
+                        :availableSeats, :aircraftType, :active, :createdAt, :updatedAt, :airlineId, 
+                        :sourceAirport, :destinationAirport)
             """)
+                .bind("externalFlightId", entity.externalFlightId)
                 .bind("flightNumber", entity.flightNumber)
                 .bind("srcAirportCode", entity.srcAirportCode)
                 .bind("destAirportCode", entity.destAirportCode)
@@ -96,6 +100,9 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                 .bind("active", entity.active)
                 .bind("createdAt", now)
                 .bind("updatedAt", now)
+                .bind("airlineId", entity.airlineId)
+                .bind("sourceAirport", entity.sourceAirport)
+                .bind("destinationAirport", entity.destinationAirport)
                 .executeAndReturnGeneratedKeys("flight_id")
                 .mapTo(Long::class.java)
                 .first()
@@ -108,15 +115,18 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         jdbi.withHandle<Unit, Exception> { handle ->
             handle.createUpdate("""
                 UPDATE flights 
-                SET flight_number = :flightNumber, 
+                SET external_flight_id = :externalFlightId,
+                    flight_number = :flightNumber, 
                     src_airport_code = :srcAirportCode, dest_airport_code = :destAirportCode,
                     departs_at = :departureTime, arrives_at = :arrivalTime, 
                     price = :price, currency = :currency, total_seats = :totalSeats,
                     available_seats = :availableSeats, aircraft_type = :aircraftType,
-                    active = :active, updated_at = :updatedAt 
+                    active = :active, updated_at = :updatedAt, airline_id = :airlineId,
+                    source_airport = :sourceAirport, destination_airport = :destinationAirport 
                 WHERE flight_id = :flightId
             """)
                 .bind("flightId", entity.flightId)
+                .bind("externalFlightId", entity.externalFlightId)
                 .bind("flightNumber", entity.flightNumber)
                 .bind("srcAirportCode", entity.srcAirportCode)
                 .bind("destAirportCode", entity.destAirportCode)
@@ -129,6 +139,9 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                 .bind("aircraftType", entity.aircraftType)
                 .bind("active", entity.active)
                 .bind("updatedAt", now)
+                .bind("airlineId", entity.airlineId)
+                .bind("sourceAirport", entity.sourceAirport)
+                .bind("destinationAirport", entity.destinationAirport)
                 .execute()
         }
         return entity.copy(updatedAt = now)
@@ -146,9 +159,24 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
         return jdbi.withHandle<Flight?, Exception> { handle ->
             handle.createQuery("""
                 SELECT * FROM flights 
-                WHERE flight_number = :flightNumber
+                WHERE airline_id = :airlineId AND flight_number = :flightNumber
             """)
+                .bind("airlineId", airlineId)
                 .bind("flightNumber", flightNumber)
+                .map(flightMapper)
+                .findFirst()
+                .orElse(null)
+        }
+    }
+
+    override fun findByAirlineIdAndExternalFlightId(airlineId: Long, externalFlightId: String): Flight? {
+        return jdbi.withHandle<Flight?, Exception> { handle ->
+            handle.createQuery("""
+                SELECT * FROM flights 
+                WHERE airline_id = :airlineId AND external_flight_id = :externalFlightId
+            """)
+                .bind("airlineId", airlineId)
+                .bind("externalFlightId", externalFlightId)
                 .map(flightMapper)
                 .findFirst()
                 .orElse(null)
@@ -245,6 +273,7 @@ class FlightDaoImpl @Inject constructor(private val jdbi: Jdbi) : FlightDao {
                     Triple(
                         Flight(
                             flightId = rs.getLong("flight_id"),
+                            externalFlightId = rs.getString("external_flight_id"),
                             flightNumber = rs.getString("flight_number"),
                             srcAirportCode = rs.getString("src_airport_code"),
                             destAirportCode = rs.getString("dest_airport_code"),
