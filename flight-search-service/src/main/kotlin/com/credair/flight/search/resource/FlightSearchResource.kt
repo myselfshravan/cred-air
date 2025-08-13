@@ -12,11 +12,14 @@ import java.time.format.DateTimeFormatter
 import javax.ws.rs.*
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
+import org.slf4j.LoggerFactory
 
 @Path("/search")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class FlightSearchResource @Inject constructor(private val flightSearchManager: FlightSearchManager) {
+
+    private val logger = LoggerFactory.getLogger(FlightSearchResource::class.java)
 
     @GET
     @Path("/flights")
@@ -31,7 +34,12 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
         @QueryParam("pageSize") pageSize: Int?
     ): Response {
         return try {
-            println("Searching for flights from $sourceAirportCode to $destinationAirportCode on $departureDate")
+            logger.info(
+                "Searching for flights from {} to {} on {}",
+                sourceAirportCode,
+                destinationAirportCode,
+                departureDate
+            )
             val parsedDate = departureDate?.let { 
                 LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay()
             }
@@ -53,7 +61,7 @@ class FlightSearchResource @Inject constructor(private val flightSearchManager: 
             
             val results = flightSearchManager.searchFlights(criteria, sortCriteria, currentPage, currentPageSize)
             val nextStartIndex = (currentPage + 1) * currentPageSize
-            val hasMore = results.isNotEmpty() || results.size >= currentPageSize
+            val hasMore = results.size == currentPageSize
             
             val response = FlightSearchResponse(
                 results = results,
